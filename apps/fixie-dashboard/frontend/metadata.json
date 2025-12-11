@@ -1,0 +1,7 @@
+{
+  "name": "FixieRun Dashboard",
+  "description": "A conceptual dashboard for FixieRun, a Web3 move-to-earn platform for cyclists. It showcases user stats, evolving NFT bikes, and market data visualizations.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

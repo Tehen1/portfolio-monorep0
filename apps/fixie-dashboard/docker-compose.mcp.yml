@@ -1,0 +1,475 @@
+version: '3.9'
+
+services:
+  # ========== TIER 1: CORE INFRASTRUCTURE ==========
+  perplexity-search:
+    image: python:3.11-slim
+    platform: linux/arm64
+    container_name: mcp-perplexity
+    command: >
+      bash -c "
+        pip install --no-cache-dir uvx &&
+        uvx perplexity-mcp
+      "
+    environment:
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - PERPLEXITY_MODEL=sonar-deep-research
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "mcp.tier=core"
+      - "mcp.priority=critical"
+
+  filesystem:
+    image: node:20-alpine
+    platform: linux/arm64
+    container_name: mcp-filesystem
+    command: >
+      sh -c "
+        npx @modelcontextprotocol/server-filesystem \
+        /app/Fixie.Run-PWA \
+        /app/Fixie.Run-dash \
+        /app/fixierun-genesis-hub \
+        /app/seo-sea-vision-pro
+      "
+    volumes:
+      - /Users/devtehen:/app:ro
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+    labels:
+      - "mcp.tier=core"
+      - "mcp.priority=critical"
+
+  omnisearch:
+    build:
+      context: /Users/devtehen/seo-sea-vision-pro/mcp-omnisearch
+      dockerfile: Dockerfile
+    platform: linux/arm64
+    container_name: mcp-omnisearch
+    environment:
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web3-tools:
+    image: node:20-alpine
+    platform: linux/arm64
+    container_name: mcp-web3
+    command: >
+      sh -c "
+        npm install -g @modelcontextprotocol/server-web3 &&
+        npx @modelcontextprotocol/server-web3
+      "
+    environment:
+      - INFURA_API_URL=${INFURA_API_URL}
+      - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
+      - ALCHEMY_API_KEY=${ALCHEMY_API_KEY}
+      - SCROLL_RPC_URL=${SCROLL_RPC_URL}
+      - POLYGON_ZKEVM_RPC_URL=${POLYGON_ZKEVM_RPC_URL}
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 1G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  github-mcp:
+    image: node:20-alpine
+    platform: linux/arm64
+    container_name: mcp-github
+    command: npx @modelcontextprotocol/server-github
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+
+  json-manager:
+    image: node:20-alpine
+    platform: linux/arm64
+    container_name: mcp-json
+    command: npx json-mcp-server@latest
+    volumes:
+      - /Users/devtehen/Fixie.Run-PWA:/app:rw
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+
+  git-integration:
+    image: node:20-alpine
+    platform: linux/arm64
+    container_name: mcp-git-pwa
+    command: npx @modelcontextprotocol/server-git /app/Fixie.Run-PWA
+    volumes:
+      - /Users/devtehen/Fixie.Run-PWA:/app/Fixie.Run-PWA
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+
+  fuzz-tester:
+    image: ghcr.io/fuzzitdev/fuzzit:latest
+    platform: linux/arm64
+    container_name: mcp-fuzzit
+    command: >
+      fuzzit create job foundry/foundry test --fuzz-seed=42 --max-test-runtime=300s
+    volumes:
+      - /Users/devtehen/Fixie.Run-PWA:/workspace
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    profiles:
+      - testing
+    restart: "no"
+
+  # ========== DATABASE & PERSISTENCE ==========
+  postgres-mcp:
+    image: postgres:16-alpine
+    platform: linux/arm64
+    container_name: mcp-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: fixie_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-mcp-data:/var/lib/postgresql/data
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-mcp:
+    image: redis:7-alpine
+    platform: linux/arm64
+    container_name: mcp-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-mcp-data:/data
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prisma-local:
+    image: node:20-alpine
+    platform: linux/arm64
+    container_name: mcp-prisma
+    working_dir: /app
+    command: npx @prisma/mcp-server
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      - /Users/devtehen/Fixie.Run-PWA:/app:ro
+    networks:
+      - mcp-network
+    depends_on:
+      postgres-mcp:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: "no"
+    profiles:
+      - database
+
+  # ========== BLOCKCHAIN STACK ==========
+  foundry-solidity:
+    image: ghcr.io/foundry-rs/foundry:latest
+    platform: linux/arm64
+    container_name: mcp-foundry
+    command: >
+      sh -c "
+        npm install -g @pranesh.asp/foundry-mcp-server &&
+        npx @pranesh.asp/foundry-mcp-server
+      "
+    environment:
+      - RPC_URL=${ZKSYNC_RPC_URL}
+      - PRIVATE_KEY=${FOUNDRY_PRIVATE_KEY}
+      - FOUNDRY_OPTIMIZE=true
+    volumes:
+      - foundry-data:/root/.foundry
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    restart: "no"
+    profiles:
+      - blockchain
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========== IPFS STORAGE ==========
+  ipfs-kit-mcp:
+    image: python:3.11-slim
+    platform: linux/arm64
+    container_name: mcp-ipfs-kit
+    command: >
+      bash -c "
+        pip install --no-cache-dir ipfs-kit-py[full,api] prometheus-fastapi-instrumentator s3backup-py &&
+        python -m ipfs_kit_py.api --enable-s3-backup --s3-bucket=fixie-run-backups
+      "
+    environment:
+      - IPFS_KIT_ROLE=worker
+      - DATABASE_URL=postgresql://admin:${DB_PASSWORD}@postgres-mcp:5432/ipfskit
+      - JWT_SECRET=${JWT_SECRET}
+      - PINATA_JWT=${PINATA_JWT}
+      - STORACHA_TOKEN=${STORACHA_TOKEN}
+      - PROMETHEUS_PORT=9090
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=us-east-1
+    ports:
+      - "8000:8000"
+      - "9090:9090"
+    volumes:
+      - ipfs-kit-data:/root/.ipfs_kit
+      - ipfs-kit-cache:/tmp/ipfs_kit_cache
+    networks:
+      - mcp-network
+    depends_on:
+      postgres-mcp:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 2G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "mcp.tier=storage"
+      - "mcp.priority=high"
+
+  # ========== MCP GATEWAY (DOCKER OFFICIAL) ==========
+  mcp-gateway:
+    image: docker/mcp-gateway:latest
+    platform: linux/arm64
+    container_name: mcp-gateway-router
+    command: >
+      --transport=streaming
+      --port=8811
+      --auth-provider=jwt
+      --catalog-url=https://github.com/docker/mcp-catalog
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - GATEWAY_LOG_LEVEL=info
+    ports:
+      - "8811:8811"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./gateway-config.yml:/config/gateway.yml:ro
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8811/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "mcp.role=gateway"
+      - "mcp.tier=infrastructure"
+
+  # ========== OBSERVABILITY ==========
+  prometheus:
+    image: prom/prometheus:latest
+    platform: linux/arm64
+    container_name: mcp-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9091:9090"
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    platform: linux/arm64
+    container_name: mcp-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    ports:
+      - "3001:3000"
+    networks:
+      - mcp-network
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    platform: linux/arm64
+    container_name: mcp-alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    networks:
+      - mcp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+
+volumes:
+  postgres-mcp-data:
+    driver: local
+  redis-mcp-data:
+    driver: local
+  foundry-data:
+    driver: local
+  ipfs-kit-data:
+    driver: local
+  ipfs-kit-cache:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  mcp-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

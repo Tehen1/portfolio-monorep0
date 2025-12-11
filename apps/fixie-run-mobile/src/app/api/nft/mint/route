@@ -1,0 +1,111 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { createPublicClient, createWalletClient, http } from 'viem'
+import { sepolia } from 'viem/chains'
+import { privateKeyToAccount } from 'viem/accounts'
+
+// Adresse du contrat NFT (à remplacer par l'adresse réelle)
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000'
+const RPC_URL = process.env.RPC_URL || 'https://ethereum-sepolia.publicnode.com'
+
+// ABI simplifiée du contrat NFT
+const NFT_ABI = [
+  {
+    "inputs": [
+      { "internalType": "address", "name": "to", "type": "address" },
+      { "internalType": "string", "name": "uri", "type": "string" }
+    ],
+    "name": "mintNFT",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { routeId, userAddress } = body
+
+    if (!routeId || !userAddress) {
+      return NextResponse.json(
+        { error: 'routeId et userAddress requis' },
+        { status: 400 }
+      )
+    }
+
+    // Récupérer la route depuis la base de données
+    const route = await prisma.route.findUnique({
+      where: { id: routeId }
+    })
+
+    if (!route) {
+      return NextResponse.json(
+        { error: 'Route non trouvée' },
+        { status: 404 }
+      )
+    }
+
+    if (!route.ipfsHash) {
+      return NextResponse.json(
+        { error: 'Route non uploadée sur IPFS' },
+        { status: 400 }
+      )
+    }
+
+    // URL IPFS du token
+    const tokenURI = `https://gateway.pinata.cloud/ipfs/${route.ipfsHash}`
+
+    // Simulation du minting pour la démo
+    const tokenId = Math.floor(Math.random() * 1000000).toString()
+    const hash = `0x${Math.random().toString(16).substr(2, 64)}`
+
+    try {
+      // Sauvegarder le NFT en base de données
+      const nft = await prisma.nFT.create({
+        data: {
+          tokenId: tokenId,
+          contractAddress: CONTRACT_ADDRESS,
+          ownerAddress: userAddress,
+          routeId: routeId,
+          tokenURI: tokenURI,
+          imageURL: '', // À remplir avec l'URL de l'image NFT
+          metadata: {
+            ...route.metadata,
+            transactionHash: hash,
+            simulated: true
+          }
+        }
+      })
+
+      // Mettre à jour la route avec le token ID
+      await prisma.route.update({
+        where: { id: routeId },
+        data: { nftTokenId: tokenId }
+      })
+
+      return NextResponse.json({
+        success: true,
+        nftId: nft.id,
+        tokenId: tokenId,
+        transactionHash: hash,
+        tokenURI: tokenURI,
+        message: 'NFT minté avec succès (mode démo)'
+      })
+
+    } catch (contractError) {
+      console.error('Erreur contrat:', contractError)
+      return NextResponse.json(
+        { error: 'Erreur lors du minting NFT' },
+        { status: 500 }
+      )
+    }
+
+  } catch (error) {
+    console.error('Erreur API mint:', error)
+    return NextResponse.json(
+      { error: 'Erreur interne du serveur' },
+      { status: 500 }
+    )
+  }
+}

@@ -1,0 +1,149 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { createPublicClient, createWalletClient, http, parseEther, formatEther } from 'viem'
+import { sepolia } from 'viem/chains'
+import { privateKeyToAccount } from 'viem/accounts'
+
+// Adresse du contrat NFT (à remplacer par l'adresse réelle)
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!
+const RPC_URL = process.env.RPC_URL!
+
+// ABI simplifiée du contrat NFT
+const NFT_ABI = [
+  {
+    "inputs": [
+      {"internalType": "address", "name": "to", "type": "address"},
+      {"internalType": "string", "name": "uri", "type": "string"}
+    ],
+    "name": "mintNFT",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
+    "name": "tokenURI",
+    "outputs": [{"internalType": "string", "name": "", "type": "string"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { routeId, userAddress } = body
+
+    if (!routeId || !userAddress) {
+      return NextResponse.json(
+        { error: 'routeId et userAddress requis' },
+        { status: 400 }
+      )
+    }
+
+    // Récupérer la route depuis la base de données
+    const route = await prisma.route.findUnique({
+      where: { id: routeId }
+    })
+
+    if (!route) {
+      return NextResponse.json(
+        { error: 'Route non trouvée' },
+        { status: 404 }
+      )
+    }
+
+    if (!route.ipfsHash) {
+      return NextResponse.json(
+        { error: 'Route non uploadée sur IPFS' },
+        { status: 400 }
+      )
+    }
+
+    // Créer le client wallet pour le minting
+    const privateKey = process.env.PRIVATE_KEY!
+    const account = privateKeyToAccount(privateKey as `0x${string}`)
+    
+    const walletClient = createWalletClient({
+      account,
+      chain: sepolia,
+      transport: http(RPC_URL),
+    })
+
+    // URL IPFS du token
+    const tokenURI = `https://gateway.pinata.cloud/ipfs/${route.ipfsHash}`
+
+    try {
+      // Appeler la fonction mint du contrat
+      const hash = await walletClient.writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: NFT_ABI,
+        functionName: 'mintNFT',
+        args: [userAddress as `0x${string}`, tokenURI],
+      })
+
+      // Attendre la confirmation de la transaction
+      const publicClient = createPublicClient({
+        chain: sepolia,
+        transport: http(RPC_URL),
+      })
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
+      
+      if (receipt.status === 'success') {
+        // Extraire le tokenId des logs (nécessite de parser les événements du contrat)
+        const tokenId = "1" // À remplacer par l'extraction réelle du tokenId
+
+        // Sauvegarder le NFT en base de données
+        const nft = await prisma.nFT.create({
+          data: {
+            tokenId: tokenId.toString(),
+            contractAddress: CONTRACT_ADDRESS,
+            ownerAddress: userAddress,
+            routeId: routeId,
+            tokenURI: tokenURI,
+            imageURL: '', // À remplir avec l'URL de l'image NFT
+            metadata: {
+              ...route.metadata,
+              transactionHash: hash,
+              blockNumber: receipt.blockNumber.toString()
+            }
+          }
+        })
+
+        // Mettre à jour la route avec le token ID
+        await prisma.route.update({
+          where: { id: routeId },
+          data: { nftTokenId: tokenId.toString() }
+        })
+
+        return NextResponse.json({
+          success: true,
+          nftId: nft.id,
+          tokenId: tokenId.toString(),
+          transactionHash: hash,
+          tokenURI: tokenURI
+        })
+      } else {
+        return NextResponse.json(
+          { error: 'Transaction échouée' },
+          { status: 500 }
+        )
+      }
+
+    } (contractError) => {
+      console.error('Erreur contrat:', contractError)
+      return NextResponse.json(
+        { error: 'Erreur lors du minting NFT' },
+        { status: 500 }
+      )
+    }
+
+  } catch (error) {
+    console.error('Erreur API mint:', error)
+    return NextResponse.json(
+      { error: 'Erreur interne du serveur' },
+      { status: 500 }
+    )
+  }
+}
