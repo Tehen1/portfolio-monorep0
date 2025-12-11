@@ -1,0 +1,11 @@
+{
+  "name": "@portfolio/database",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "prisma": "^5.8.0",
+    "@prisma/client": "^5.8.0"
+  }
+}

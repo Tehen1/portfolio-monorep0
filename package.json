@@ -1,0 +1,25 @@
+{
+  "name": "portfolio-ecosystem",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "deploy": "turbo run deploy",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0",
+    "@vercel/style-guide": "^6.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
