@@ -1,0 +1,364 @@
+name: 🔒 Security & TypeScript CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 2 * * *' # Daily security scan
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════
+  # 1. TYPESCRIPT STRICT COMPILATION
+  # ═══════════════════════════════════════════════════════════════
+  typescript:
+    name: 🔍 TypeScript Strict Mode
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 💾 Restore pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ✅ TypeScript compilation
+        run: pnpm exec tsc --noEmit --strict
+
+      - name: 📊 Type coverage check
+        run: pnpm exec type-coverage --at-least 98
+        continue-on-error: false
+
+  # ═══════════════════════════════════════════════════════════════
+  # 2. SECURITY SCANNING - SNYK
+  # ═══════════════════════════════════════════════════════════════
+  security-snyk:
+    name: 🛡️ Snyk Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🔐 Run Snyk scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
+
+      - name: 📤 Upload SARIF report
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+
+      - name: 💬 Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const sarif = JSON.parse(fs.readFileSync('snyk.sarif', 'utf8'));
+            const issues = sarif.runs[0].results.length;
+            
+            if (issues > 0) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `⚠️ **Snyk Security Scan**: ${issues} issue(s) detected\n\nPlease review and fix before merging.`
+              });
+            }
+
+  # ═══════════════════════════════════════════════════════════════
+  # 3. LINTING & CODE QUALITY
+  # ═══════════════════════════════════════════════════════════════
+  lint:
+    name: 📝 ESLint & Prettier
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ✅ Run ESLint
+        run: pnpm exec eslint src --max-warnings 0
+
+      - name: 🎨 Check Prettier formatting
+        run: pnpm exec prettier --check src
+
+  # ═══════════════════════════════════════════════════════════════
+  # 4. UNIT & INTEGRATION TESTS
+  # ═══════════════════════════════════════════════════════════════
+  test:
+    name: 🧪 Jest Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🧪 Run tests
+        run: pnpm exec jest --coverage --testPathPattern="src/" --maxWorkers=4
+
+      - name: 📊 Coverage threshold
+        run: pnpm exec jest --coverage --collectCoverageFrom="src/**/*.ts" --collectCoverageFrom="!src/**/*.d.ts" --coverageThreshold='{"global":{"branches":95,"functions":95,"lines":95,"statements":95}}'
+
+      - name: 📤 Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+
+  # ═══════════════════════════════════════════════════════════════
+  # 5. SMART CONTRACT AUDIT - FOUNDRY
+  # ═══════════════════════════════════════════════════════════════
+  foundry:
+    name: ⚙️ Foundry Smart Contract Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 🏗️ Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: 📊 Foundry cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.foundry
+          key: foundry-${{ runner.os }}-${{ github.run_id }}
+
+      - name: 🔨 Build Solidity contracts
+        working-directory: ./contracts
+        run: forge build --build-info
+
+      - name: 🧪 Run Foundry tests
+        working-directory: ./contracts
+        run: forge test -vvv
+
+      - name: 📊 Gas report
+        working-directory: ./contracts
+        run: forge test --gas-report > gas-report.txt
+
+      - name: 🔍 Slither static analysis
+        working-directory: ./contracts
+        run: |
+          pip install slither-analyzer
+          slither . --json slither-report.json || true
+
+      - name: 💬 Comment PR with gas report
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const gasReport = fs.readFileSync('contracts/gas-report.txt', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `\`\`\`\n${gasReport}\n\`\`\``
+            });
+
+  # ═══════════════════════════════════════════════════════════════
+  # 6. BUILD & BUNDLE ANALYSIS
+  # ═══════════════════════════════════════════════════════════════
+  build:
+    name: 🏗️ Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [typescript, lint, test]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🔨 Build Next.js
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_ENV: production
+
+      - name: 📊 Bundle analysis
+        run: pnpm exec next-bundle-analysis
+
+      - name: 💾 Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: .next
+          key: nextjs-${{ github.sha }}
+
+  # ═══════════════════════════════════════════════════════════════
+  # 7. DEPLOYMENT TO VERCEL
+  # ═══════════════════════════════════════════════════════════════
+  deploy-preview:
+    name: 🚀 Deploy to Vercel Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    needs: [build]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to Vercel
+        uses: vercel/actions/deploy-preview@main
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build, foundry]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to Vercel Production
+        uses: vercel/actions/deploy-production@main
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: 📢 Slack notification
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "✅ FixieRun deployed to production",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deployment Successful*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ═══════════════════════════════════════════════════════════════
+  # 8. STATUS CHECK
+  # ═══════════════════════════════════════════════════════════════
+  status:
+    name: ✅ CI/CD Status
+    runs-on: ubuntu-latest
+    needs: [typescript, security-snyk, lint, test, foundry, build, deploy-preview, deploy-production]
+    if: always()
+
+    steps:
+      - name: 📊 Check status
+        run: |
+          if [[ "${{ needs.typescript.result }}" != "success" ]] || \
+             [[ "${{ needs.security-snyk.result }}" != "success" ]] || \
+             [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.test.result }}" != "success" ]] || \
+             [[ "${{ needs.foundry.result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "❌ CI/CD Failed"
+            exit 1
+          fi
+          echo "✅ All checks passed"

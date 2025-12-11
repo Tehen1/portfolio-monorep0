@@ -1,0 +1,42 @@
+{
+  "name": "seo-blockchain-ai-reports",
+  "version": "1.0.0",
+  "description": "Générateur de rapports SEO, Blockchain et IA pour vos domaines",
+  "main": "cli.js",
+  "bin": {
+    "seo-reports": "./cli.js"
+  },
+  "scripts": {
+    "start": "node cli.js",
+    "generate": "node cli.js generate",
+    "generate-all": "node cli.js generate-all",
+    "list": "node cli.js list",
+    "test-api": "node cli.js test-api",
+    "summary": "node cli.js summary",
+    "cleanup": "node cli.js cleanup",
+    "interactive": "node cli.js interactive",
+    "stats": "node cli.js stats",
+    "test": "node test.js",
+    "test:unit": "node test.js",
+    "demo": "node demo.js"
+  },
+  "keywords": [
+    "seo",
+    "blockchain",
+    "ai",
+    "reports",
+    "automation",
+    "pplx",
+    "api"
+  ],
+  "author": "SEO-Blockchain-IA Reports Generator",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "chalk": "^4.1.2",
+    "commander": "^14.0.2",
+    "dotenv": "^17.2.3",
+    "fs-extra": "^11.3.2",
+    "inquirer": "^12.10.0"
+  }
+}

@@ -1,0 +1,435 @@
+# Automated Scaling Policies & Predictive Analytics
+# Multi-Domain Portfolio Platform - Dynamic Resource Management
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # AUTO-SCALING CONTROLLER
+  # =============================================================================
+  autoscaling-controller:
+    image: k8s-autoscaler:v1.28.0
+    container_name: portfolio-autoscaling-controller
+    restart: unless-stopped
+    environment:
+      - KUBERNETES_SERVICE_HOST=kubernetes.default.svc
+      - KUBERNETES_SERVICE_PORT=443
+      - SCALING_MIN_REPLICAS=1
+      - SCALING_MAX_REPLICAS=10
+      - SCALING_CPU_THRESHOLD=70
+      - SCALING_MEMORY_THRESHOLD=80
+      - SCALING_RESPONSE_TIME_THRESHOLD=2000
+      - SCALING_ERROR_RATE_THRESHOLD=5
+      - PREDICTIVE_WINDOW_HOURS=24
+      - SCALE_UP_COOLDOWN=300
+      - SCALE_DOWN_COOLDOWN=600
+    volumes:
+      - ./scaling/config.yml:/app/config.yml:ro
+      - ./scaling/rules:/app/rules:ro
+      - scaling-logs:/app/logs
+    networks:
+      - scaling-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  # =============================================================================
+  # PREDICTIVE ANALYTICS ENGINE
+  # =============================================================================
+  predictive-analytics:
+    image: analytics-engine:v1.0.0
+    container_name: portfolio-predictive-analytics
+    restart: unless-stopped
+    environment:
+      - ML_MODEL_PATH=/models/traffic_prediction.pkl
+      - ML_MODEL_REFRESH_INTERVAL=3600
+      - PREDICTION_CONFIDENCE_THRESHOLD=0.8
+      - ANOMALY_DETECTION_THRESHOLD=3.0
+      - FORECAST_HORIZON_HOURS=168
+      - DATA_SOURCES=prometheus,influxdb,elasticsearch
+    volumes:
+      - ./analytics/models:/models:ro
+      - analytics-cache:/cache
+      - analytics-data:/data
+    networks:
+      - scaling-network
+      - monitoring-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+  # =============================================================================
+  # TRAFFIC MONITORING & ANALYSIS
+  # =============================================================================
+  traffic-analyzer:
+    image: traffic-analyzer:v2.0.0
+    container_name: portfolio-traffic-analyzer
+    restart: unless-stopped
+    environment:
+      - ANALYSIS_INTERVAL=60
+      - TRAFFIC_SPIKE_THRESHOLD=2.0
+      - SUSTAINED_LOAD_THRESHOLD=0.8
+      - GEOGRAPHIC_DISTRIBUTION_ANALYSIS=true
+      - BOT_DETECTION_ENABLED=true
+      - CDN_HIT_RATIO_THRESHOLD=0.9
+    volumes:
+      - traffic-logs:/app/logs
+      - traffic-cache:/cache
+    networks:
+      - scaling-network
+      - monitoring-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # =============================================================================
+  # DOMAIN-SPECIFIC SCALING RULES
+  # =============================================================================
+  
+  # Portfolio Website Scaling Rules
+  portfolio-scaling-rules:
+    image: scaling-rules:v1.0.0
+    container_name: portfolio-scaling-rules
+    restart: unless-stopped
+    environment:
+      - DOMAIN=antonylambi.be
+      - MIN_REPLICAS=2
+      - MAX_REPLICAS=8
+      - CPU_THRESHOLD=65
+      - MEMORY_THRESHOLD=75
+      - RESPONSE_TIME_THRESHOLD=1500
+      - TRAFFIC_SPIKE_MULTIPLIER=1.5
+      - BUSINESS_HOURS_BOOST=1.2
+    volumes:
+      - portfolio-scaling-logs:/app/logs
+    networks:
+      - scaling-network
+      - app-network
+    profiles:
+      - portfolio
+
+  # Tech Review Blog Scaling Rules
+  techreview-scaling-rules:
+    image: scaling-rules:v1.0.0
+    container_name: techreview-scaling-rules
+    restart: unless-stopped
+    environment:
+      - DOMAIN=tech-review-blog.com
+      - MIN_REPLICAS=2
+      - MAX_REPLICAS=6
+      - CPU_THRESHOLD=70
+      - MEMORY_THRESHOLD=80
+      - RESPONSE_TIME_THRESHOLD=2000
+      - TRAFFIC_SPIKE_MULTIPLIER=2.0
+      - CONTENT_PUBLISH_BOOST=1.5
+    volumes:
+      - techreview-scaling-logs:/app/logs
+    networks:
+      - scaling-network
+      - app-network
+    profiles:
+      - techreview
+
+  # SEOBiz SaaS Scaling Rules
+  seobiz-scaling-rules:
+    image: scaling-rules:v1.0.0
+    container_name: seobiz-scaling-rules
+    restart: unless-stopped
+    environment:
+      - DOMAIN=seobiz.be
+      - MIN_REPLICAS=3
+      - MAX_REPLICAS=12
+      - CPU_THRESHOLD=60
+      - MEMORY_THRESHOLD=85
+      - RESPONSE_TIME_THRESHOLD=1000
+      - TRAFFIC_SPIKE_MULTIPLIER=3.0
+      - API_CALL_BOOST=1.8
+      - BATCH_JOB_BOOST=2.5
+    volumes:
+      - seobiz-scaling-logs:/app/logs
+    networks:
+      - scaling-network
+      - app-network
+    profiles:
+      - seobiz
+
+  # Fixie.run Web3 App Scaling Rules
+  fixie-scaling-rules:
+    image: scaling-rules:v1.0.0
+    container_name: fixie-scaling-rules
+    restart: unless-stopped
+    environment:
+      - DOMAIN=fixie.run
+      - MIN_REPLICAS=2
+      - MAX_REPLICAS=8
+      - CPU_THRESHOLD=75
+      - MEMORY_THRESHOLD=70
+      - RESPONSE_TIME_THRESHOLD=3000
+      - TRAFFIC_SPIKE_MULTIPLIER=2.5
+      - WEB3_TRANSACTION_BOOST=1.3
+      - GAMING_EVENT_BOOST=2.0
+    volumes:
+      - fixie-scaling-logs:/app/logs
+    networks:
+      - scaling-network
+      - app-network
+      - web3-network
+    profiles:
+      - fixie
+
+  # E-commerce Scaling Rules (Mushrooms)
+  ecommerce-scaling-rules:
+    image: scaling-rules:v1.0.0
+    container_name: ecommerce-scaling-rules
+    restart: unless-stopped
+    environment:
+      - DOMAIN=adaptogenic-mushrooms.com
+      - MIN_REPLICAS=2
+      - MAX_REPLICAS=10
+      - CPU_THRESHOLD=65
+      - MEMORY_THRESHOLD=80
+      - RESPONSE_TIME_THRESHOLD=1200
+      - TRAFFIC_SPIKE_MULTIPLIER=2.2
+      - PURCHASE_EVENT_BOOST=1.4
+      - SEASONAL_BOOST=1.6
+    volumes:
+      - ecommerce-scaling-logs:/app/logs
+    networks:
+      - scaling-network
+      - app-network
+    profiles:
+      - ecommerce
+
+  # =============================================================================
+  # LOAD BALANCER WITH INTELLIGENT ROUTING
+  # =============================================================================
+  intelligent-loadbalancer:
+    image: nginx:alpine
+    container_name: portfolio-intelligent-lb
+    restart: unless-stopped
+    environment:
+      - BALANCING_ALGORITHM=least_conn
+      - HEALTH_CHECK_INTERVAL=5
+      - FAILURE_THRESHOLD=3
+      - SUCCESS_THRESHOLD=2
+      - TIMEOUT=5000
+      - GEOGRAPHIC_ROUTING=true
+      - STICKY_SESSIONS=false
+    volumes:
+      - ./loadbalancer/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./loadbalancer/upstreams:/etc/nginx/upstreams:ro
+      - ./loadbalancer/geoip:/usr/share/GeoIP:ro
+      - loadbalancer-logs:/var/log/nginx
+    networks:
+      - scaling-network
+      - gateway-network
+    ports:
+      - "80:80"
+      - "443:443"
+
+  # =============================================================================
+  # SERVERLESS FUNCTION ORCHESTRATOR
+  # =============================================================================
+  serverless-orchestrator:
+    image: serverless-orchestrator:v1.0.0
+    container_name: portfolio-serverless-orchestrator
+    restart: unless-stopped
+    environment:
+      - FUNCTION_TIMEOUT=300
+      - MEMORY_ALLOCATION=512
+      - CONCURRENT_EXECUTION_LIMIT=100
+      - COLD_START_THRESHOLD=1000
+      - WARM_POOL_SIZE=5
+      - SCALE_TO_ZERO_DELAY=900
+    volumes:
+      - serverless-logs:/app/logs
+      - ./functions:/functions:ro
+    networks:
+      - scaling-network
+      - worker-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.75'
+
+  # =============================================================================
+  # RESOURCE OPTIMIZATION ENGINE
+  # =============================================================================
+  resource-optimizer:
+    image: resource-optimizer:v1.0.0
+    container_name: portfolio-resource-optimizer
+    restart: unless-stopped
+    environment:
+      - OPTIMIZATION_INTERVAL=300
+      - MEMORY_COMPRESSION_ENABLED=true
+      - CPU_UTILIZATION_TARGET=70
+      - DISK_IO_OPTIMIZATION=true
+      - NETWORK_BANDWIDTH_MANAGEMENT=true
+      - CONTAINER_DENSITY_OPTIMIZATION=true
+    volumes:
+      - optimizer-logs:/app/logs
+      - optimizer-cache:/cache
+    networks:
+      - scaling-network
+      - monitoring-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # =============================================================================
+  # TRAFFIC SHAPING & RATE LIMITING
+  # =============================================================================
+  traffic-shaper:
+    image: traffic-shaper:v1.0.0
+    container_name: portfolio-traffic-shaper
+    restart: unless-stopped
+    environment:
+      - RATE_LIMIT_WINDOW=60
+      - RATE_LIMIT_REQUESTS=1000
+      - BURST_SIZE=100
+      - DDOS_PROTECTION_ENABLED=true
+      - GEOGRAPHIC_BLOCKING=false
+      - BOT_FILTERING=true
+      - CACHE_TTL_OVERRIDE=true
+    volumes:
+      - shaper-logs:/app/logs
+      - ./shaper/rules:/rules:ro
+    networks:
+      - scaling-network
+      - gateway-network
+    ports:
+      - "8080:8080"
+
+  # =============================================================================
+  # PERFORMANCE MONITORING & ALERTING
+  # =============================================================================
+  performance-monitor:
+    image: performance-monitor:v1.0.0
+    container_name: portfolio-performance-monitor
+    restart: unless-stopped
+    environment:
+      - MONITORING_INTERVAL=30
+      - ALERT_THRESHOLD_CPU=85
+      - ALERT_THRESHOLD_MEMORY=90
+      - ALERT_THRESHOLD_RESPONSE_TIME=3000
+      - ALERT_THRESHOLD_ERROR_RATE=5
+      - ESCALATION_TIMEOUT=300
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - EMAIL_RECIPIENTS=${ALERT_EMAIL_RECIPIENTS}
+    volumes:
+      - monitor-logs:/app/logs
+      - ./monitoring/thresholds.yml:/app/thresholds.yml:ro
+    networks:
+      - scaling-network
+      - monitoring-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+# =============================================================================
+# VOLUMES CONFIGURATION
+# =============================================================================
+volumes:
+  scaling-logs:
+    driver: local
+  analytics-cache:
+    driver: local
+  analytics-data:
+    driver: local
+  traffic-logs:
+    driver: local
+  traffic-cache:
+    driver: local
+  portfolio-scaling-logs:
+    driver: local
+  techreview-scaling-logs:
+    driver: local
+  seobiz-scaling-logs:
+    driver: local
+  fixie-scaling-logs:
+    driver: local
+  ecommerce-scaling-logs:
+    driver: local
+  loadbalancer-logs:
+    driver: local
+  serverless-logs:
+    driver: local
+  optimizer-logs:
+    driver: local
+  optimizer-cache:
+    driver: local
+  shaper-logs:
+    driver: local
+  monitor-logs:
+    driver: local
+
+# =============================================================================
+# NETWORKS CONFIGURATION
+# =============================================================================
+networks:
+  scaling-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.40.0.0/16
+  app-network:
+    external: true
+  web3-network:
+    external: true
+  gateway-network:
+    external: true
+  monitoring-network:
+    external: true
+  worker-network:
+    external: true
+
+# =============================================================================
+# SCALING CONFIGURATION RULES
+# =============================================================================
+x-scaling-config: &scaling-config
+  replicas: 2
+  restart_policy:
+    condition: on-failure
+    delay: 10s
+    max_attempts: 3
+    window: 120s
+  update_config:
+    parallelism: 1
+    delay: 30s
+    failure_action: rollback
+    monitor: 60s
+    order: start-first
+  resources:
+    limits:
+      memory: 512M
+      cpus: '0.5'
+    reservations:
+      memory: 256M
+      cpus: '0.25'
+  placement:
+    constraints:
+      - node.role == worker
+
+x-healthcheck-scaling: &healthcheck-scaling
+  interval: 30s
+  timeout: 15s
+  retries: 3
+  start_period: 90s
+  test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

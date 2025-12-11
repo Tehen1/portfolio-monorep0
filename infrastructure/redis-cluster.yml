@@ -1,0 +1,498 @@
+# Redis Cluster with Multi-Zone Replication and Intelligent Invalidation
+# Production-ready caching infrastructure for €1M+ revenue scale
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: portfolio
+data:
+  redis.conf: |
+    # Redis Production Configuration
+    bind 0.0.0.0
+    protected-mode no
+    port 6379
+    timeout 0
+    tcp-keepalive 300
+    daemonize no
+    supervised no
+    loglevel notice
+    logfile ""
+
+    # Memory management
+    maxmemory 512mb
+    maxmemory-policy allkeys-lru
+    maxmemory-samples 5
+
+    # Persistence
+    save 900 1
+    save 300 10
+    save 60 10000
+    stop-writes-on-bgsave-error yes
+    rdbcompression yes
+    rdbchecksum yes
+    dbfilename dump.rdb
+    dir /data
+
+    # Append only file
+    appendonly yes
+    appendfilename "appendonly.aof"
+    appendfsync everysec
+    no-appendfsync-on-rewrite no
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+
+    # Replication
+    repl-diskless-sync no
+    repl-diskless-sync-delay 5
+    repl-disable-tcp-nodelay no
+    repl-backlog-size 1mb
+    repl-backlog-ttl 3600
+
+    # Security
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    rename-command SHUTDOWN SHUTDOWN_REDIS
+    rename-command CONFIG CONFIG_REDIS
+
+  sentinel.conf: |
+    # Redis Sentinel Configuration
+    bind 0.0.0.0
+    protected-mode no
+    port 26379
+    daemonize no
+    logfile ""
+
+    # Sentinel settings
+    sentinel monitor mymaster redis-0.redis.portfolio.svc.cluster.local 6379 2
+    sentinel down-after-milliseconds mymaster 5000
+    sentinel failover-timeout mymaster 60000
+    sentinel parallel-syncs mymaster 1
+
+  redis-cluster.conf: |
+    # Redis Cluster Configuration
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    cluster-node-timeout 5000
+    cluster-migration-barrier 1
+    cluster-require-full-coverage yes
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+  namespace: portfolio
+type: Opaque
+data:
+  # Base64 encoded password
+  redis-password: "$(REDIS_PASSWORD_B64)"
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster
+  namespace: portfolio
+  labels:
+    app: redis
+    component: cluster
+spec:
+  serviceName: redis-cluster
+  replicas: 6  # 3 masters + 3 replicas for high availability
+  selector:
+    matchLabels:
+      app: redis
+      component: cluster
+  template:
+    metadata:
+      labels:
+        app: redis
+        component: cluster
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        - containerPort: 16379
+          name: cluster-bus
+        command:
+        - redis-server
+        - /etc/redis/redis.conf
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis
+        - name: redis-data
+          mountPath: /data
+        - name: redis-logs
+          mountPath: /var/log/redis
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+          items:
+          - key: redis-cluster.conf
+            path: redis.conf
+      - name: redis-logs
+        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+      storageClassName: fast-ssd
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-sentinel
+  namespace: portfolio
+  labels:
+    app: redis
+    component: sentinel
+spec:
+  serviceName: redis-sentinel
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+      component: sentinel
+  template:
+    metadata:
+      labels:
+        app: redis
+        component: sentinel
+    spec:
+      containers:
+      - name: sentinel
+        image: redis:7-alpine
+        ports:
+        - containerPort: 26379
+          name: sentinel
+        command:
+        - redis-sentinel
+        - /etc/redis/sentinel.conf
+        volumeMounts:
+        - name: sentinel-config
+          mountPath: /etc/redis
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          tcpSocket:
+            port: 26379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 26379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: sentinel-config
+        configMap:
+          name: redis-config
+          items:
+          - key: sentinel.conf
+            path: sentinel.conf
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-cache-manager
+  namespace: portfolio
+  labels:
+    app: redis
+    component: cache-manager
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: redis
+      component: cache-manager
+  template:
+    metadata:
+      labels:
+        app: redis
+        component: cache-manager
+    spec:
+      containers:
+      - name: cache-manager
+        image: redis-cache-manager:latest
+        env:
+        - name: REDIS_CLUSTER_ENDPOINT
+          value: "redis-cluster.portfolio.svc.cluster.local:6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        - name: CACHE_TTL_DEFAULT
+          value: "3600"
+        - name: CACHE_TTL_SESSION
+          value: "86400"
+        - name: CACHE_TTL_API
+          value: "300"
+        - name: INVALIDATION_STRATEGY
+          value: "intelligent"
+        - name: PREFETCH_ENABLED
+          value: "true"
+        volumeMounts:
+        - name: cache-config
+          mountPath: /etc/cache
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: cache-config
+        configMap:
+          name: cache-manager-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster-service
+  namespace: portfolio
+  labels:
+    app: redis
+    component: cluster
+spec:
+  selector:
+    app: redis
+    component: cluster
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel-service
+  namespace: portfolio
+  labels:
+    app: redis
+    component: sentinel
+spec:
+  selector:
+    app: redis
+    component: sentinel
+  ports:
+  - name: sentinel
+    port: 26379
+    targetPort: 26379
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cache-manager-service
+  namespace: portfolio
+  labels:
+    app: redis
+    component: cache-manager
+spec:
+  selector:
+    app: redis
+    component: cache-manager
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: redis-backup
+  namespace: portfolio
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: redis:7-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              redis-cli -h redis-cluster.portfolio.svc.cluster.local -a $REDIS_PASSWORD --rdb /backup/redis-$(date +%Y%m%d-%H%M%S).rdb
+              aws s3 cp /backup/redis-$(date +%Y%m%d-%H%M%S).rdb s3://portfolio-backups/redis/
+            env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: redis-password
+            volumeMounts:
+            - name: backup-volume
+              mountPath: /backup
+          volumes:
+          - name: backup-volume
+            persistentVolumeClaim:
+              claimName: redis-backup-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-backup-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cache-manager-config
+  namespace: portfolio
+data:
+  cache-strategies.json: |
+    {
+      "strategies": {
+        "user_session": {
+          "ttl": 86400,
+          "invalidation": "user_action",
+          "compression": true
+        },
+        "api_response": {
+          "ttl": 300,
+          "invalidation": "time_based",
+          "compression": true
+        },
+        "static_content": {
+          "ttl": 604800,
+          "invalidation": "manual",
+          "compression": true
+        },
+        "database_query": {
+          "ttl": 3600,
+          "invalidation": "smart",
+          "compression": false
+        },
+        "web3_data": {
+          "ttl": 60,
+          "invalidation": "block_based",
+          "compression": true
+        }
+      },
+      "invalidation_rules": {
+        "user_action": ["logout", "password_change", "profile_update"],
+        "time_based": ["5_minutes", "1_hour", "1_day"],
+        "smart": ["table_change", "related_data_update"],
+        "block_based": ["new_block", "transaction_confirm"],
+        "manual": ["admin_flush", "deployment"]
+      },
+      "prefetch_rules": {
+        "user_profile": ["user_posts", "user_stats"],
+        "product_page": ["related_products", "reviews"],
+        "api_endpoints": ["frequent_queries", "popular_data"]
+      }
+    }
+
+  cache-metrics.json: |
+    {
+      "metrics": {
+        "hit_rate": {
+          "target": 0.95,
+          "alert_threshold": 0.90
+        },
+        "eviction_rate": {
+          "target": 0.05,
+          "alert_threshold": 0.10
+        },
+        "memory_usage": {
+          "target": 0.80,
+          "alert_threshold": 0.90
+        },
+        "connection_count": {
+          "target": 100,
+          "alert_threshold": 200
+        }
+      },
+      "monitoring": {
+        "enabled": true,
+        "interval": 60,
+        "exporters": ["prometheus", "datadog"]
+      }
+    }

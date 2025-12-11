@@ -1,0 +1,628 @@
+# Istio Service Mesh Configuration with Circuit Breaker Patterns
+# Production-ready service mesh for €1M+ revenue scale with advanced traffic management
+
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istiocontrolplane
+  namespace: istio-system
+spec:
+  profile: default
+  components:
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      k8s:
+        service:
+          type: LoadBalancer
+          ports:
+          - name: http2
+            port: 80
+            targetPort: 8080
+          - name: https
+            port: 443
+            targetPort: 8443
+          - name: status-port
+            port: 15021
+            targetPort: 15021
+    egressGateways:
+    - name: istio-egressgateway
+      enabled: true
+    pilot:
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 2Gi
+  values:
+    global:
+      proxy:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 2000m
+            memory: 1Gi
+      mtls:
+        enabled: true
+      controlPlaneSecurityEnabled: true
+      disablePolicyChecks: false
+    pilot:
+      autoscaleEnabled: true
+      autoscaleMin: 2
+      autoscaleMax: 5
+    gateways:
+      istio-ingressgateway:
+        autoscaleEnabled: true
+        autoscaleMin: 2
+        autoscaleMax: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 2000m
+            memory: 1Gi
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: portfolio-gateway
+  namespace: portfolio
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - antonylambi.be
+    - fixie.run
+    - seobiz.be
+    - adaptogenic-mushrooms.com
+    - rhymechain.win
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: portfolio-tls
+    hosts:
+    - antonylambi.be
+    - fixie.run
+    - seobiz.be
+    - adaptogenic-mushrooms.com
+    - rhymechain.win
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: portfolio-routing
+  namespace: portfolio
+spec:
+  hosts:
+  - antonylambi.be
+  gateways:
+  - portfolio-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: api-gateway.portfolio.svc.cluster.local
+        port:
+          number: 8000
+      weight: 100
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+      retryOn: "5xx,connect-failure,refused-stream"
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: portfolio-service.portfolio.svc.cluster.local
+        port:
+          number: 80
+      weight: 100
+    timeout: 10s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: fixie-routing
+  namespace: portfolio
+spec:
+  hosts:
+  - fixie.run
+  gateways:
+  - portfolio-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api/web3"
+    route:
+    - destination:
+        host: fixie-service.portfolio.svc.cluster.local
+        port:
+          number: 80
+      weight: 100
+    timeout: 45s  # Longer timeout for Web3 operations
+    retries:
+      attempts: 2
+      perTryTimeout: 15s
+      retryOn: "5xx,connect-failure"
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: fixie-service.portfolio.svc.cluster.local
+        port:
+          number: 80
+      weight: 100
+    timeout: 10s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: seobiz-routing
+  namespace: portfolio
+spec:
+  hosts:
+  - seobiz.be
+  gateways:
+  - portfolio-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api"
+    route:
+    - destination:
+        host: seobiz-service.portfolio.svc.cluster.local
+        port:
+          number: 80
+      weight: 100
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 8s
+      retryOn: "5xx,connect-failure,refused-stream"
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: seobiz-service.portfolio.svc.cluster.local
+        port:
+          number: 80
+      weight: 100
+    timeout: 10s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: portfolio-circuit-breaker
+  namespace: portfolio
+spec:
+  host: "*.portfolio.svc.cluster.local"
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30s
+      http:
+        http1MaxPendingRequests: 1024
+        http2MaxRequests: 1024
+        maxRequestsPerConnection: 10
+        maxRetries: 3
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    loadBalancer:
+      simple: ROUND_ROBIN
+      consistentHash:
+        httpHeaderName: "x-user-id"
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: database-circuit-breaker
+  namespace: portfolio
+spec:
+  host: postgres-primary.portfolio.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+        connectTimeout: 10s
+      http:
+        http1MaxPendingRequests: 512
+        http2MaxRequests: 512
+        maxRequestsPerConnection: 5
+        maxRetries: 2
+    outlierDetection:
+      consecutive5xxErrors: 2
+      interval: 5s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+    loadBalancer:
+      simple: ROUND_ROBIN
+    tls:
+      mode: MUTUAL
+      clientCertificate: /etc/istio/certs/client.pem
+      privateKey: /etc/istio/certs/client-key.pem
+      caCertificates: /etc/istio/certs/ca.pem
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: redis-circuit-breaker
+  namespace: portfolio
+spec:
+  host: redis-cluster.portfolio.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 200
+        connectTimeout: 5s
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 15s
+      baseEjectionTime: 45s
+      maxEjectionPercent: 40
+    loadBalancer:
+      simple: ROUND_ROBIN
+    tls:
+      mode: MUTUAL
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: ai-service-circuit-breaker
+  namespace: portfolio
+spec:
+  host: ai-content-service.portfolio.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 256
+        http2MaxRequests: 256
+        maxRequestsPerConnection: 8
+        maxRetries: 2
+    outlierDetection:
+      consecutive5xxErrors: 2
+      interval: 30s
+      baseEjectionTime: 120s
+      maxEjectionPercent: 20
+    loadBalancer:
+      simple: ROUND_ROBIN
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: portfolio
+spec:
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: permissive-for-web3
+  namespace: portfolio
+spec:
+  selector:
+    matchLabels:
+      app: fixie
+  mtls:
+    mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: portfolio-auth-policy
+  namespace: portfolio
+spec:
+  selector:
+    matchLabels:
+      app: portfolio
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/portfolio/sa/portfolio-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+        paths: ["/api/*"]
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: database-auth-policy
+  namespace: portfolio
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/portfolio/sa/portfolio-sa"]
+    to:
+    - operation:
+        methods: ["*"]
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: redis-auth-policy
+  namespace: portfolio
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/portfolio/sa/portfolio-sa"]
+    to:
+    - operation:
+        methods: ["*"]
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: ai-service-auth-policy
+  namespace: portfolio
+spec:
+  selector:
+    matchLabels:
+      app: ai-content
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/portfolio/sa/portfolio-sa"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/generate", "/analyze"]
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-apis
+  namespace: portfolio
+spec:
+  hosts:
+  - api.openai.com
+  - api.anthropic.com
+  - api.google.com
+  - cloudflare-eth.com
+  - polygon-rpc.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  resolution: DNS
+  endpoints:
+  - address: api.openai.com
+  - address: api.anthropic.com
+  - address: api.google.com
+  - address: cloudflare-eth.com
+  - address: polygon-rpc.com
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: external-api-routing
+  namespace: portfolio
+spec:
+  hosts:
+  - api.openai.com
+  - api.anthropic.com
+  - api.google.com
+  http:
+  - match:
+    - sourceLabels:
+        app: ai-content
+    route:
+    - destination:
+        host: api.openai.com
+      weight: 60
+    - destination:
+        host: api.anthropic.com
+      weight: 30
+    - destination:
+        host: api.google.com
+      weight: 10
+    timeout: 60s
+    retries:
+      attempts: 2
+      perTryTimeout: 30s
+      retryOn: "5xx,connect-failure"
+
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: portfolio-telemetry
+  namespace: portfolio
+spec:
+  selector:
+    matchLabels:
+      service.istio.io/canonical-name: "*"
+  metrics:
+  - providers:
+    - name: prometheus
+    overrides:
+    - match:
+        metric: REQUEST_COUNT
+        mode: CLIENT_AND_SERVER
+      tagOverrides:
+        request_operation:
+          value: "istio_request_operation"
+    - match:
+        metric: REQUEST_DURATION
+        mode: CLIENT_AND_SERVER
+      tagOverrides:
+        response_code:
+          value: "istio_response_code"
+    - match:
+        metric: REQUEST_SIZE
+        mode: CLIENT_AND_SERVER
+      tagOverrides:
+        source_app:
+          value: "istio_source_app"
+        destination_app:
+          value: "istio_destination_app"
+  accessLogging:
+  - providers:
+    - name: envoy
+    disabled: false
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: EnvoyFilter
+metadata:
+  name: circuit-breaker-filter
+  namespace: portfolio
+spec:
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_OUTBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+            subFilter:
+              name: "envoy.filters.http.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.circuit_breaker
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.circuit_breaker.v3.CircuitBreakerConfig
+          per_host_circuit_breaker:
+            max_connections: 10
+            max_pending_requests: 20
+            max_requests: 50
+            max_retries: 3
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: EnvoyFilter
+metadata:
+  name: rate-limit-filter
+  namespace: portfolio
+spec:
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.ratelimit
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
+          domain: portfolio
+          rate_limit_service:
+            grpc_service:
+              envoy_grpc:
+                cluster_name: rate_limit_service
+              timeout: 10s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: EnvoyFilter
+metadata:
+  name: waf-filter
+  namespace: portfolio
+spec:
+  workloadSelector:
+    labels:
+      app: portfolio
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_FIRST
+      value:
+        name: envoy.filters.http.waf
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.waf.v3.WAF
+          rules: |
+            # ModSecurity Core Rule Set
+            SecRuleEngine On
+            SecRule REQUEST_URI "@contains wp-admin" "id:1001,phase:1,t:lowercase,deny,status:403,msg:'WordPress admin access denied'"
+            SecRule REQUEST_HEADERS:User-Agent "@pmFromFile /etc/modsecurity/data/blocked-agents.data" "id:1002,phase:1,deny,status:403,msg:'Blocked user agent'"
+
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: istio-pilot-pdb
+  namespace: istio-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      istio: pilot
+
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: istio-ingress-pdb
+  namespace: istio-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      istio: ingressgateway

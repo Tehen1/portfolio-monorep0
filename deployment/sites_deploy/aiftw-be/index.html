@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Flow - Plateforme B2B Lead Generation & AI Marketing | Belgique</title>
+    <meta name="description" content="Plateforme AI avancée pour la génération de leads B2B. Automatisation marketing, prospection intelligente, CRM intégré. Solutions IA pour entreprises belges.">
+    <meta name="keywords" content="lead generation, AI marketing, B2B prospects, automatisation marketing, CRM IA, Belgique">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); 
+            min-height: 100vh; 
+            color: white;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+        header { text-align: center; margin-bottom: 60px; }
+        .logo { font-size: 3.5em; margin-bottom: 20px; }
+        h1 { font-size: 3.5em; color: white; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .subtitle { font-size: 1.4em; color: rgba(255,255,255,0.9); margin-bottom: 40px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; margin: 50px 0; }
+        .stat { 
+            background: rgba(255,255,255,0.1); 
+            padding: 30px; 
+            border-radius: 20px; 
+            text-align: center; 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .stat-number { font-size: 2.5em; font-weight: bold; color: #00d4ff; margin-bottom: 10px; }
+        .stat-label { color: rgba(255,255,255,0.8); font-size: 1.1em; }
+        .content { 
+            background: rgba(255,255,255,0.95); 
+            border-radius: 25px; 
+            padding: 50px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2); 
+            margin-bottom: 40px;
+            color: #333;
+        }
+        .ai-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin: 40px 0; }
+        .ai-feature { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            border-radius: 20px; 
+            padding: 30px; 
+            position: relative;
+            overflow: hidden;
+        }
+        .ai-feature::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+        .ai-feature:hover::before {
+            transform: translateX(100%);
+        }
+        .ai-icon { font-size: 3em; margin-bottom: 20px; }
+        .ai-feature h3 { margin-bottom: 15px; font-size: 1.4em; }
+        .ai-feature p { line-height: 1.6; opacity: 0.9; }
+        .metrics-section { 
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); 
+            color: white; 
+            padding: 50px; 
+            border-radius: 25px; 
+            margin: 50px 0;
+            text-align: center;
+        }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; margin: 40px 0; }
+        .metric-card { background: rgba(255,255,255,0.15); padding: 30px; border-radius: 20px; }
+        .metric-value { font-size: 2.5em; font-weight: bold; margin-bottom: 10px; }
+        .metric-label { font-size: 1.1em; opacity: 0.9; }
+        .process-section { background: #2c5364; color: white; padding: 50px; border-radius: 25px; margin: 50px 0; }
+        .process-steps { display: flex; justify-content: space-between; margin: 40px 0; flex-wrap: wrap; gap: 20px; }
+        .step { flex: 1; min-width: 200px; text-align: center; padding: 25px; background: rgba(255,255,255,0.1); border-radius: 15px; }
+        .step-number { background: #00d4ff; color: #2c5364; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 1.8em; font-weight: bold; }
+        .pricing-section { background: #0f2027; color: white; padding: 50px; border-radius: 25px; margin: 50px 0; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin: 40px 0; }
+        .pricing-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 40px; text-align: center; position: relative; }
+        .pricing-card.featured { background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); transform: scale(1.05); }
+        .price { font-size: 3em; font-weight: bold; color: #00d4ff; margin: 20px 0; }
+        .pricing-card.featured .price { color: white; }
+        .price-features { list-style: none; margin: 20px 0; }
+        .price-features li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .cta-section { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 60px; 
+            border-radius: 25px; 
+            text-align: center; 
+            margin: 50px 0;
+        }
+        .cta-button { 
+            background: white; 
+            color: #667eea; 
+            padding: 20px 40px; 
+            border: none; 
+            border-radius: 30px; 
+            font-size: 1.2em; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin: 15px; 
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .cta-button:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3); 
+        }
+        footer { text-align: center; margin-top: 60px; color: rgba(255,255,255,0.8); }
+        .contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; margin: 30px 0; }
+        .contact-item { text-align: center; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 15px; }
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5em; }
+            .container { padding: 20px 10px; }
+            .content { padding: 30px 20px; }
+            .stats { gap: 20px; }
+            .ai-features { grid-template-columns: 1fr; }
+            .process-steps { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🤖 AI FLOW</div>
+            <h1>AI Flow - Lead Generation B2B</h1>
+            <p class="subtitle">Plateforme IA Avancée pour la Génération de Leads • Automatisation Marketing • CRM Intégré</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number">500+</div>
+                    <div class="stat-label">Entreprises Clients</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">10k+</div>
+                    <div class="stat-label">Leads Générés/mois</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">85%</div>
+                    <div class="stat-label">Taux de Conversion</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">Support IA</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="content">
+            <h2 style="text-align: center; margin-bottom: 40px; color: #0f2027; font-size: 2.2em;">🚀 Intelligence Artificielle pour le B2B</h2>
+            <div class="ai-features">
+                <div class="ai-feature">
+                    <div class="ai-icon">🎯</div>
+                    <h3>Lead Scoring Intelligent</h3>
+                    <p>Notre IA analyse 50+ critères pour scorer automatiquement vos prospects. Identification des leads à fort potentiel en temps réel.</p>
+                </div>
+                <div class="ai-feature">
+                    <div class="ai-icon">📊</div>
+                    <h3>CRM Automatisé</h3>
+                    <p>Synchronisation automatique des leads, scoring, nurturing et conversion. Pipeline de vente optimisé par IA.</p>
+                </div>
+                <div class="ai-feature">
+                    <div class="ai-icon">🔍</div>
+                    <h3>Prospection Intelligente</h3>
+                    <p>Identification automatique de prospects qualifiés grâce à l'analyse comportementale et prédictive.</p>
+                </div>
+                <div class="ai-feature">
+                    <div class="ai-icon">📧</div>
+                    <h3>Email Marketing IA</h3>
+                    <p>Campagnes personnalisées et optimisées automatiquement. A/B testing intelligent et personnalisation à l'échelle.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="metrics-section">
+            <h2 style="font-size: 2.5em; margin-bottom: 30px;">📈 Résultats Mesurables</h2>
+            <p style="font-size: 1.3em; margin-bottom: 40px;">Nos clients observent des résultats immédiats grâce à l'IA</p>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value">300%</div>
+                    <div class="metric-label">Augmentation des Leads</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">60%</div>
+                    <div class="metric-label">Réduction des Coûts</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">40%</div>
+                    <div class="metric-label">Amélioration Conversion</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">24h</div>
+                    <div class="metric-label">Temps de Mise en Place</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="process-section">
+            <h2 style="text-align: center; margin-bottom: 30px; font-size: 2.2em;">⚙️ Notre Processus en 4 Étapes</h2>
+            <div class="process-steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h4>Analyse IA</h4>
+                    <p>Analyse automatique de votre marché cible et concurrence</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h4>Stratégie Personnalisée</h4>
+                    <p>Développement d'une stratégie IA sur mesure</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h4>Implémentation</h4>
+                    <p>Déploiement des outils IA et automatisation</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h4>Optimisation Continue</h4>
+                    <p>Amélioration permanente via machine learning</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="pricing-section">
+            <h2 style="text-align: center; margin-bottom: 30px; font-size: 2.5em;">💰 Tarifs Transparent</h2>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3>Starter</h3>
+                    <div class="price">€299<small>/mois</small></div>
+                    <ul class="price-features">
+                        <li>1,000 leads/mois</li>
+                        <li>Lead scoring basique</li>
+                        <li>Email automation</li>
+                        <li>Dashboard simple</li>
+                        <li>Support email</li>
+                    </ul>
+                </div>
+                <div class="pricing-card featured">
+                    <h3>Professional</h3>
+                    <div class="price">€599<small>/mois</small></div>
+                    <ul class="price-features">
+                        <li>5,000 leads/mois</li>
+                        <li>IA avancée</li>
+                        <li>CRM intégré</li>
+                        <li>Analytics détaillés</li>
+                        <li>Support prioritaire</li>
+                    </ul>
+                </div>
+                <div class="pricing-card">
+                    <h3>Enterprise</h3>
+                    <div class="price">Sur Mesure</div>
+                    <ul class="price-features">
+                        <li>Leads illimités</li>
+                        <li>IA personnalisée</li>
+                        <li>Intégrations sur mesure</li>
+                        <li>Formation dédiée</li>
+                        <li>Support 24/7</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="cta-section">
+            <h2 style="font-size: 2.8em; margin-bottom: 20px;">🎯 Transformez Votre Lead Generation !</h2>
+            <p style="font-size: 1.4em; margin-bottom: 40px;">Rejoignez 500+ entreprises qui font confiance à notre IA pour générer des leads qualifiés</p>
+            <button class="cta-button">Audit Gratuit</button>
+            <button class="cta-button">Démo Personnalisée</button>
+            <button class="cta-button">Essai 14 Jours</button>
+        </div>
+
+        <footer>
+            <h3 style="color: white; margin-bottom: 25px;">📞 Contact & Support</h3>
+            <div class="contact-grid">
+                <div class="contact-item">
+                    <div style="font-size: 2em; margin-bottom: 10px;">📍</div>
+                    <h4>Liège, Belgique</h4>
+                    <p>Hub innovation tech</p>
+                </div>
+                <div class="contact-item">
+                    <div style="font-size: 2em; margin-bottom: 10px;">📧</div>
+                    <h4>contact@aiftw.be</h4>
+                    <p>Réponse sous 2h</p>
+                </div>
+                <div class="contact-item">
+                    <div style="font-size: 2em; margin-bottom: 10px;">💬</div>
+                    <h4>Chat IA 24/7</h4>
+                    <p>Support intelligent</p>
+                </div>
+            </div>
+            <p style="margin-top: 30px; font-size: 0.9em;">© 2025 AI Flow Belgium. Développé par Antony Lambi • Powered by AI</p>
+        </footer>
+    </div>
+
+    <script>
+        // Animation des cartes au survol
+        document.querySelectorAll('.ai-feature').forEach(feature => {
+            feature.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+                this.style.boxShadow = '0 20px 40px rgba(102,126,234,0.3)';
+            });
+            
+            feature.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // Animation d'apparition au scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observer les éléments
+        document.querySelectorAll('.ai-feature, .step, .pricing-card').forEach(element => {
+            element.style.opacity = '0';
+            element.style.transform = 'translateY(30px)';
+            element.style.transition = 'opacity 0.8s, transform 0.8s';
+            observer.observe(element);
+        });
+
+        // Animation des stats
+        function animateStats() {
+            document.querySelectorAll('.stat-number').forEach(stat => {
+                const text = stat.textContent;
+                if (text.includes('%')) {
+                    let current = 0;
+                    const target = parseInt(text);
+                    const increment = target / 50;
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(timer);
+                        }
+                        stat.textContent = Math.floor(current) + '%';
+                    }, 30);
+                } else if (text.includes('k+')) {
+                    const number = parseInt(text.replace(/[k+]/g, ''));
+                    let current = 0;
+                    const increment = number / 50;
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= number) {
+                            current = number;
+                            clearInterval(timer);
+                        }
+                        stat.textContent = Math.floor(current) + 'k+';
+                    }, 30);
+                } else {
+                    const number = parseInt(text.replace(/\D/g, ''));
+                    let current = 0;
+                    const increment = number / 50;
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= number) {
+                            current = number;
+                            clearInterval(timer);
+                        }
+                        stat.textContent = Math.floor(current).toLocaleString() + '+';
+                    }, 30);
+                }
+            });
+        }
+
+        // Déclencher l'animation
+        const statsObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    animateStats();
+                    statsObserver.unobserve(entry.target);
+                }
+            });
+        });
+
+        statsObserver.observe(document.querySelector('.stats'));
+    </script>
+</body>
+</html>

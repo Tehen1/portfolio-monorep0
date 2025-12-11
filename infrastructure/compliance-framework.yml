@@ -1,0 +1,649 @@
+# Comprehensive Compliance Framework
+# GDPR, SOC2, HIPAA-ready with Zero-Trust Architecture
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compliance-config
+  namespace: portfolio
+data:
+  gdpr-compliance.json: |
+    {
+      "data_processing": {
+        "lawful_basis": ["consent", "contract", "legitimate_interest", "legal_obligation"],
+        "data_categories": {
+          "personal_data": ["name", "email", "phone", "address"],
+          "special_categories": ["health_data", "financial_data"],
+          "web3_data": ["wallet_address", "transaction_history", "nft_ownership"]
+        },
+        "retention_periods": {
+          "user_data": "7_years",
+          "transaction_data": "10_years",
+          "audit_logs": "7_years"
+        },
+        "data_minimization": {
+          "enabled": true,
+          "automatic_cleanup": true,
+          "anonymization_policies": ["pseudonymization", "aggregation"]
+        }
+      },
+      "data_subject_rights": {
+        "access": {
+          "response_time": "30_days",
+          "automated_processing": true,
+          "data_portability": true
+        },
+        "rectification": {
+          "response_time": "30_days",
+          "automated_processing": true
+        },
+        "erasure": {
+          "response_time": "30_days",
+          "automated_processing": true,
+          "right_to_be_forgotten": true
+        },
+        "restriction": {
+          "response_time": "30_days",
+          "automated_processing": true
+        },
+        "objection": {
+          "response_time": "30_days",
+          "automated_processing": true
+        }
+      },
+      "data_protection_officer": {
+        "contact": "dpo@portfolio.com",
+        "independence": true,
+        "resources": "adequate",
+        "reporting_line": "board_level"
+      },
+      "data_protection_impact_assessment": {
+        "required_thresholds": ["high_risk_processing", "large_scale_processing", "sensitive_data"],
+        "automated_assessment": true,
+        "review_frequency": "annual"
+      },
+      "international_data_transfers": {
+        "adequacy_decisions": ["EEA_countries", "UK", "Switzerland"],
+        "standard_contractual_clauses": true,
+        "binding_corporate_rules": false,
+        "automated_checks": true
+      }
+    }
+
+  soc2-compliance.json: |
+    {
+      "trust_services_criteria": {
+        "security": {
+          "access_control": true,
+          "encryption": true,
+          "change_management": true,
+          "monitoring": true,
+          "incident_response": true
+        },
+        "availability": {
+          "system_availability": 0.9995,
+          "backup_recovery": true,
+          "disaster_recovery": true,
+          "capacity_management": true
+        },
+        "processing_integrity": {
+          "data_processing_accuracy": true,
+          "system_processing_completeness": true,
+          "error_handling": true
+        },
+        "confidentiality": {
+          "data_classification": true,
+          "access_restrictions": true,
+          "encryption_at_rest": true,
+          "encryption_in_transit": true
+        },
+        "privacy": {
+          "notice_and_consent": true,
+          "choice_and_consent": true,
+          "collection_and_use": true,
+          "retention_and_disposal": true,
+          "access_and_correction": true,
+          "security": true,
+          "quality": true,
+          "monitoring_and_enforcement": true
+        }
+      },
+      "controls": {
+        "preventive": ["access_controls", "encryption", "input_validation"],
+        "detective": ["monitoring", "logging", "auditing"],
+        "corrective": ["backup_recovery", "incident_response", "change_management"]
+      },
+      "evidence_collection": {
+        "automated": true,
+        "frequency": "continuous",
+        "retention": "7_years",
+        "integrity_checks": true
+      }
+    }
+
+  hipaa-compliance.json: |
+    {
+      "security_rule": {
+        "administrative_safeguards": {
+          "security_management_process": true,
+          "assigned_security_officer": true,
+          "information_access_management": true,
+          "security_awareness_training": true,
+          "security_incident_procedures": true,
+          "contingency_plan": true,
+          "evaluation": true,
+          "business_associate_contracts": true
+        },
+        "physical_safeguards": {
+          "facility_access_controls": true,
+          "workstation_use": true,
+          "workstation_security": true,
+          "device_and_media_controls": true
+        },
+        "technical_safeguards": {
+          "access_control": true,
+          "audit_controls": true,
+          "integrity": true,
+          "person_or_entity_authentication": true,
+          "transmission_security": true
+        }
+      },
+      "privacy_rule": {
+        "minimum_necessary": true,
+        "individual_rights": true,
+        "administrative_requirements": true
+      },
+      "breach_notification": {
+        "covered_entity_notification": "60_days",
+        "affected_individuals": "60_days",
+        "media_notification": "60_days",
+        "secretary_notification": "60_days"
+      },
+      "business_associate_agreements": {
+        "required": true,
+        "monitoring": true,
+        "termination_procedures": true
+      }
+    }
+
+  zero-trust-architecture.json: |
+    {
+      "identity_verification": {
+        "multi_factor_authentication": true,
+        "continuous_verification": true,
+        "risk_based_authentication": true,
+        "device_trust": true
+      },
+      "least_privilege": {
+        "role_based_access_control": true,
+        "attribute_based_access_control": true,
+        "just_in_time_access": true,
+        "automated_provisioning": true
+      },
+      "micro_segmentation": {
+        "network_segmentation": true,
+        "application_segmentation": true,
+        "data_segmentation": true,
+        "east_west_traffic_control": true
+      },
+      "continuous_monitoring": {
+        "behavioral_analytics": true,
+        "anomaly_detection": true,
+        "threat_intelligence": true,
+        "automated_response": true
+      },
+      "assume_breach": {
+        "data_encryption": true,
+        "zero_knowledge_architecture": true,
+        "immutable_audit_logs": true,
+        "automated_forensics": true
+      }
+    }
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: compliance-secrets
+  namespace: portfolio
+type: Opaque
+data:
+  # Base64 encoded secrets
+  encryption-key: "$(ENCRYPTION_KEY_B64)"
+  audit-key: "$(AUDIT_KEY_B64)"
+  compliance-api-key: "$(COMPLIANCE_API_KEY_B64)"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-engine
+  namespace: portfolio
+  labels:
+    app: compliance-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compliance-engine
+  template:
+    metadata:
+      labels:
+        app: compliance-engine
+    spec:
+      serviceAccountName: compliance-sa
+      containers:
+      - name: compliance-engine
+        image: compliance-engine:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: CONFIG_DIR
+          value: "/config"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.portfolio.svc.cluster.local:9090"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: portfolio-secrets
+              key: database-url
+        volumeMounts:
+        - name: compliance-config
+          mountPath: /config
+        - name: compliance-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: compliance-config
+        configMap:
+          name: compliance-config
+      - name: compliance-data
+        persistentVolumeClaim:
+          claimName: compliance-data-pvc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zero-trust-gateway
+  namespace: portfolio
+  labels:
+    app: zero-trust-gateway
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: zero-trust-gateway
+  template:
+    metadata:
+      labels:
+        app: zero-trust-gateway
+    spec:
+      containers:
+      - name: zero-trust-gateway
+        image: zero-trust-gateway:latest
+        ports:
+        - containerPort: 8443
+          name: https
+        env:
+        - name: CERTIFICATE_PATH
+          value: "/certs/tls.crt"
+        - name: KEY_PATH
+          value: "/certs/tls.key"
+        - name: AUTH_ENDPOINT
+          value: "http://auth-service.portfolio.svc.cluster.local:8080"
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /certs
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          tcpSocket:
+            port: 8443
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8443
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: tls-certs
+        secret:
+          secretName: portfolio-tls
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-protection-officer
+  namespace: portfolio
+  labels:
+    app: data-protection-officer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-protection-officer
+  template:
+    metadata:
+      labels:
+        app: data-protection-officer
+    spec:
+      containers:
+      - name: dpo-engine
+        image: dpo-engine:latest
+        env:
+        - name: COMPLIANCE_ENGINE_URL
+          value: "http://compliance-engine.portfolio.svc.cluster.local:8080"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: portfolio-secrets
+              key: database-url
+        volumeMounts:
+        - name: dpo-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: dpo-data
+        persistentVolumeClaim:
+          claimName: dpo-data-pvc
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gdpr-compliance-check
+  namespace: portfolio
+spec:
+  schedule: "0 6 * * 1"  # Weekly on Monday
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: gdpr-check
+            image: compliance-checker:latest
+            env:
+            - name: CHECK_TYPE
+              value: "gdpr"
+            - name: COMPLIANCE_ENGINE_URL
+              value: "http://compliance-engine.portfolio.svc.cluster.local:8080"
+            volumeMounts:
+            - name: compliance-reports
+              mountPath: /reports
+          volumes:
+          - name: compliance-reports
+            persistentVolumeClaim:
+              claimName: compliance-reports-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: soc2-evidence-collection
+  namespace: portfolio
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: soc2-evidence
+            image: evidence-collector:latest
+            env:
+            - name: FRAMEWORK
+              value: "soc2"
+            - name: COMPLIANCE_ENGINE_URL
+              value: "http://compliance-engine.portfolio.svc.cluster.local:8080"
+            volumeMounts:
+            - name: compliance-reports
+              mountPath: /reports
+          volumes:
+          - name: compliance-reports
+            persistentVolumeClaim:
+              claimName: compliance-reports-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hipaa-security-audit
+  namespace: portfolio
+spec:
+  schedule: "0 3 1 * *"  # Monthly
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hipaa-audit
+            image: security-auditor:latest
+            env:
+            - name: FRAMEWORK
+              value: "hipaa"
+            - name: COMPLIANCE_ENGINE_URL
+              value: "http://compliance-engine.portfolio.svc.cluster.local:8080"
+            volumeMounts:
+            - name: compliance-reports
+              mountPath: /reports
+          volumes:
+          - name: compliance-reports
+            persistentVolumeClaim:
+              claimName: compliance-reports-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-engine-service
+  namespace: portfolio
+  labels:
+    app: compliance-engine
+spec:
+  selector:
+    app: compliance-engine
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zero-trust-gateway-service
+  namespace: portfolio
+  labels:
+    app: zero-trust-gateway
+spec:
+  selector:
+    app: zero-trust-gateway
+  ports:
+  - name: https
+    port: 8443
+    targetPort: 8443
+    protocol: TCP
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: compliance-data-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dpo-data-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: compliance-reports-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Gi
+  storageClassName: standard
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ServiceAccount
+metadata:
+  name: compliance-sa
+  namespace: portfolio
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: compliance-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["get", "list", "watch", "create", "patch", "update"]
+- apiGroups: ["security.istio.io"]
+  resources: ["authorizationpolicies", "peerauthentications"]
+  verbs: ["get", "list", "watch", "create", "patch", "update"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: compliance-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: compliance-role
+subjects:
+- kind: ServiceAccount
+  name: compliance-sa
+  namespace: portfolio
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: compliance-network-policy
+  namespace: portfolio
+spec:
+  podSelector:
+    matchLabels:
+      app: compliance-engine
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: kpi-dashboard
+    - podSelector:
+        matchLabels:
+          app: data-protection-officer
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: compliance-engine-monitor
+  namespace: portfolio
+  labels:
+    app: compliance-engine
+spec:
+  selector:
+    matchLabels:
+      app: compliance-engine
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+  namespaceSelector:
+    matchNames:
+    - portfolio

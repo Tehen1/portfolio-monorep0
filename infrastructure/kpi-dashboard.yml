@@ -1,0 +1,659 @@
+# Real-Time KPI Dashboards and Automated Regulatory Reporting
+# Production-ready monitoring and compliance system for €1M+ revenue scale
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kpi-dashboard-config
+  namespace: portfolio
+data:
+  dashboard-config.json: |
+    {
+      "kpis": {
+        "business_metrics": {
+          "monthly_revenue": {
+            "target": 350000,
+            "unit": "EUR",
+            "alert_threshold": 0.9,
+            "trend_analysis": true
+          },
+          "active_users": {
+            "target": 50000,
+            "alert_threshold": 0.85,
+            "growth_rate_target": 0.15
+          },
+          "conversion_rate": {
+            "target": 0.05,
+            "unit": "percentage",
+            "alert_threshold": 0.8
+          },
+          "customer_acquisition_cost": {
+            "target": 50,
+            "unit": "EUR",
+            "alert_threshold": 1.2
+          },
+          "lifetime_value": {
+            "target": 500,
+            "unit": "EUR",
+            "alert_threshold": 0.9
+          }
+        },
+        "technical_metrics": {
+          "uptime": {
+            "target": 0.9995,
+            "unit": "percentage",
+            "alert_threshold": 0.9990
+          },
+          "response_time_p95": {
+            "target": 500,
+            "unit": "ms",
+            "alert_threshold": 1.5
+          },
+          "error_rate": {
+            "target": 0.001,
+            "unit": "percentage",
+            "alert_threshold": 2.0
+          },
+          "cache_hit_rate": {
+            "target": 0.95,
+            "unit": "percentage",
+            "alert_threshold": 0.90
+          },
+          "resource_utilization": {
+            "cpu_target": 0.85,
+            "memory_target": 0.80,
+            "alert_threshold": 0.95
+          }
+        },
+        "security_metrics": {
+          "failed_login_attempts": {
+            "alert_threshold": 10,
+            "time_window": "1h"
+          },
+          "suspicious_traffic": {
+            "alert_threshold": 100,
+            "time_window": "5m"
+          },
+          "data_breach_indicators": {
+            "alert_threshold": 1,
+            "severity": "critical"
+          }
+        },
+        "web3_metrics": {
+          "transaction_success_rate": {
+            "target": 0.99,
+            "alert_threshold": 0.95
+          },
+          "gas_optimization_ratio": {
+            "target": 0.9,
+            "alert_threshold": 0.8
+          },
+          "cross_chain_transfers": {
+            "target": 1000,
+            "unit": "per_day",
+            "alert_threshold": 0.8
+          }
+        }
+      },
+      "dashboards": {
+        "executive_dashboard": {
+          "widgets": [
+            "revenue_chart",
+            "user_growth",
+            "conversion_funnel",
+            "system_health",
+            "security_status"
+          ],
+          "refresh_interval": 300,
+          "alerts_enabled": true
+        },
+        "technical_dashboard": {
+          "widgets": [
+            "response_times",
+            "error_rates",
+            "resource_usage",
+            "cache_performance",
+            "database_metrics"
+          ],
+          "refresh_interval": 60,
+          "alerts_enabled": true
+        },
+        "security_dashboard": {
+          "widgets": [
+            "threat_intelligence",
+            "access_logs",
+            "compliance_status",
+            "incident_response"
+          ],
+          "refresh_interval": 30,
+          "alerts_enabled": true
+        },
+        "web3_dashboard": {
+          "widgets": [
+            "transaction_monitor",
+            "gas_analytics",
+            "cross_chain_status",
+            "wallet_connections"
+          ],
+          "refresh_interval": 60,
+          "alerts_enabled": true
+        }
+      },
+      "alerting": {
+        "channels": {
+          "slack": {
+            "webhook_url": "$(SLACK_WEBHOOK_URL)",
+            "channels": {
+              "executive": "#executive-alerts",
+              "technical": "#tech-alerts",
+              "security": "#security-alerts"
+            }
+          },
+          "email": {
+            "smtp_server": "$(SMTP_SERVER)",
+            "recipients": {
+              "executive": ["ceo@portfolio.com", "cfo@portfolio.com"],
+              "technical": ["devops@portfolio.com"],
+              "security": ["security@portfolio.com"]
+            }
+          },
+          "pagerduty": {
+            "integration_key": "$(PAGERDUTY_KEY)",
+            "services": {
+              "critical": "P1",
+              "warning": "P2",
+              "info": "P3"
+            }
+          }
+        },
+        "escalation_policy": {
+          "tier_1_response": "5m",
+          "tier_2_response": "15m",
+          "executive_escalation": "1h",
+          "regulatory_notification": "24h"
+        }
+      }
+    }
+
+  regulatory-reporting.json: |
+    {
+      "gdpr": {
+        "data_processing_report": {
+          "frequency": "monthly",
+          "retention_period": "7_years",
+          "automated_generation": true,
+          "distribution": ["dpo@portfolio.com", "legal@portfolio.com"]
+        },
+        "data_subject_requests": {
+          "response_time_sla": "30_days",
+          "automated_tracking": true,
+          "audit_trail": true
+        },
+        "data_breach_notification": {
+          "immediate_notification": true,
+          "detailed_report_sla": "72_hours",
+          "affected_users_notification": "24_hours"
+        }
+      },
+      "soc2": {
+        "type2_audit": {
+          "frequency": "annual",
+          "automated_evidence_collection": true,
+          "control_testing": "continuous",
+          "report_generation": "automated"
+        },
+        "trust_services_criteria": {
+          "security": true,
+          "availability": true,
+          "processing_integrity": true,
+          "confidentiality": true,
+          "privacy": true
+        }
+      },
+      "hipaa": {
+        "business_associate_agreement": {
+          "monitoring": true,
+          "compliance_tracking": true,
+          "audit_frequency": "quarterly"
+        },
+        "phi_data_handling": {
+          "encryption_required": true,
+          "access_logging": true,
+          "data_minimization": true,
+          "retention_limits": true
+        },
+        "breach_notification": {
+          "hhs_notification": "60_days",
+          "affected_individuals": "60_days",
+          "media_notification": "60_days"
+        }
+      },
+      "iso27001": {
+        "risk_assessment": {
+          "frequency": "annual",
+          "automated_scanning": true,
+          "threat_intelligence": true
+        },
+        "controls_implementation": {
+          "access_control": true,
+          "cryptography": true,
+          "physical_security": true,
+          "operations_security": true,
+          "communications_security": true,
+          "supplier_relationships": true
+        }
+      },
+      "automation": {
+        "report_scheduling": {
+          "daily": ["system_health", "security_incidents"],
+          "weekly": ["performance_metrics", "resource_utilization"],
+          "monthly": ["gdpr_compliance", "financial_reports"],
+          "quarterly": ["soc2_evidence", "risk_assessment"],
+          "annual": ["iso27001_audit", "comprehensive_review"]
+        },
+        "distribution_channels": {
+          "secure_email": true,
+          "encrypted_storage": true,
+          "blockchain_verification": true,
+          "regulatory_portals": true
+        },
+        "evidence_collection": {
+          "continuous_monitoring": true,
+          "automated_screenshots": true,
+          "log_aggregation": true,
+          "metric_archival": true
+        }
+      }
+    }
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kpi-dashboard-secrets
+  namespace: portfolio
+type: Opaque
+data:
+  # Base64 encoded secrets
+  slack-webhook-url: "$(SLACK_WEBHOOK_URL_B64)"
+  smtp-password: "$(SMTP_PASSWORD_B64)"
+  pagerduty-key: "$(PAGERDUTY_KEY_B64)"
+  datadog-api-key: "$(DATADOG_API_KEY_B64)"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kpi-dashboard
+  namespace: portfolio
+  labels:
+    app: kpi-dashboard
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kpi-dashboard
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: kpi-dashboard
+        component: frontend
+    spec:
+      containers:
+      - name: dashboard
+        image: kpi-dashboard:latest
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: API_URL
+          value: "http://kpi-api.portfolio.svc.cluster.local:8080"
+        - name: WEBSOCKET_URL
+          value: "ws://kpi-api.portfolio.svc.cluster.local:8080"
+        volumeMounts:
+        - name: dashboard-config
+          mountPath: /config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: dashboard-config
+        configMap:
+          name: kpi-dashboard-config
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kpi-api
+  namespace: portfolio
+  labels:
+    app: kpi-dashboard
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kpi-dashboard
+      component: api
+  template:
+    metadata:
+      labels:
+        app: kpi-dashboard
+        component: api
+    spec:
+      containers:
+      - name: api
+        image: kpi-api:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8081
+          name: websocket
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.portfolio.svc.cluster.local:9090"
+        - name: GRAFANA_URL
+          value: "http://grafana.portfolio.svc.cluster.local:3000"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: portfolio-secrets
+              key: database-url
+        - name: REDIS_URL
+          value: "redis://redis-cluster.portfolio.svc.cluster.local:6379"
+        volumeMounts:
+        - name: api-config
+          mountPath: /config
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: api-config
+        configMap:
+          name: kpi-dashboard-config
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: regulatory-reporting
+  namespace: portfolio
+  labels:
+    app: regulatory-reporting
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: regulatory-reporting
+  template:
+    metadata:
+      labels:
+        app: regulatory-reporting
+    spec:
+      containers:
+      - name: reporting
+        image: regulatory-reporting:latest
+        env:
+        - name: CONFIG_FILE
+          value: "/config/regulatory-reporting.json"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: portfolio-secrets
+              key: database-url
+        - name: SMTP_SERVER
+          valueFrom:
+            secretKeyRef:
+              name: kpi-dashboard-secrets
+              key: smtp-server
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kpi-dashboard-secrets
+              key: smtp-password
+        volumeMounts:
+        - name: reporting-config
+          mountPath: /config
+        - name: reports-volume
+          mountPath: /reports
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: reporting-config
+        configMap:
+          name: kpi-dashboard-config
+      - name: reports-volume
+        persistentVolumeClaim:
+          claimName: regulatory-reports-pvc
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-kpi-report
+  namespace: portfolio
+spec:
+  schedule: "0 8 * * *"  # Daily at 8 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: kpi-report
+            image: kpi-reporting:latest
+            env:
+            - name: REPORT_TYPE
+              value: "daily"
+            - name: API_URL
+              value: "http://kpi-api.portfolio.svc.cluster.local:8080"
+            volumeMounts:
+            - name: reports-volume
+              mountPath: /reports
+          volumes:
+          - name: reports-volume
+            persistentVolumeClaim:
+              claimName: regulatory-reports-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: monthly-regulatory-report
+  namespace: portfolio
+spec:
+  schedule: "0 9 1 * *"  # First day of month at 9 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: regulatory-report
+            image: regulatory-reporting:latest
+            env:
+            - name: REPORT_TYPE
+              value: "monthly"
+            - name: COMPLIANCE_FRAMEWORKS
+              value: "gdpr,soc2,hipaa"
+            volumeMounts:
+            - name: reports-volume
+              mountPath: /reports
+          volumes:
+          - name: reports-volume
+            persistentVolumeClaim:
+              claimName: regulatory-reports-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kpi-dashboard-service
+  namespace: portfolio
+  labels:
+    app: kpi-dashboard
+spec:
+  selector:
+    app: kpi-dashboard
+    component: frontend
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kpi-api-service
+  namespace: portfolio
+  labels:
+    app: kpi-dashboard
+spec:
+  selector:
+    app: kpi-dashboard
+    component: api
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: websocket
+    port: 8081
+    targetPort: 8081
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: regulatory-reports-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kpi-dashboard-ingress
+  namespace: portfolio
+  annotations:
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: kpi-dashboard-auth
+    nginx.ingress.kubernetes.io/auth-realm: "KPI Dashboard"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - kpi.portfolio.com
+    secretName: kpi-dashboard-tls
+  rules:
+  - host: kpi.portfolio.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kpi-dashboard-service
+            port:
+              number: 80
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kpi-dashboard-auth
+  namespace: portfolio
+type: Opaque
+data:
+  # Base64 encoded htpasswd
+  auth: "$(HTPASSWD_B64)"
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kpi-dashboard-monitor
+  namespace: portfolio
+  labels:
+    app: kpi-dashboard
+spec:
+  selector:
+    matchLabels:
+      app: kpi-dashboard
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+  namespaceSelector:
+    matchNames:
+    - portfolio

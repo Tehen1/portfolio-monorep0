@@ -1,0 +1,738 @@
+# Containerized Microservices Architecture
+# Multi-Domain Portfolio Platform with Load Routing
+
+version: '3.9'
+
+services:
+  # =============================================================================
+  # DOMAIN ROUTING GATEWAY (NGINX)
+  domain-gateway:
+    image: nginx:alpine
+    container_name: portfolio-domain-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./gateway/conf.d:/etc/nginx/conf.d:ro
+      - ./gateway/ssl:/etc/nginx/ssl:ro
+      - ./gateway/logs:/var/log/nginx
+    networks:
+      - gateway-network
+    depends_on:
+      - portfolio-app
+      - fixie-app
+      - seobiz-app
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # API GATEWAY (KONG/ZAPIER-Style)
+  # =============================================================================
+  api-gateway:
+    image: kong:3.4-alpine
+    container_name: portfolio-api-gateway
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: "/kong/declarative/kong.yml"
+      KONG_PROXY_ACCESS_LOG: "/dev/stdout"
+      KONG_ADMIN_ACCESS_LOG: "/dev/stdout"
+      KONG_PROXY_ERROR_LOG: "/dev/stderr"
+      KONG_ADMIN_ERROR_LOG: "/dev/stderr"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+      - "8001:8001"
+    volumes:
+      - ./gateway/kong.yml:/kong/declarative/kong.yml:ro
+      - ./gateway/plugins:/opt/kong/plugins:ro
+    networks:
+      - gateway-network
+    depends_on:
+      - redis-kong
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REDIS FOR API GATEWAY
+  # =============================================================================
+  redis-kong:
+    image: redis:7-alpine
+    container_name: portfolio-redis-kong
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-kong-data:/data
+    networks:
+      - gateway-network
+
+  # =============================================================================
+  # CORE DOMAIN APPLICATIONS
+  # =============================================================================
+  
+  # 1. Portfolio Website (antonylambi.be)
+  portfolio-app:
+    image: portfolio-platform:2.0.0
+    container_name: antonylambi-be-app
+    restart: unless-stopped
+    environment:
+      - DOMAIN=antonylambi.be
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/antonylambi_be
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - WEB3_RPC_URL=${ETHEREUM_RPC_URL}
+      - ANALYTICS_GA_ID=${GA_MEASUREMENT_ID}
+    volumes:
+      - portfolio-uploads:/app/uploads
+      - portfolio-logs:/app/logs
+    networks:
+      - app-network
+      - gateway-network
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 30s
+        order: start-first
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 2. Tech Review Blog (tech-review-blog.com)
+  tech-review-blog:
+    image: portfolio-platform:2.0.0
+    container_name: tech-review-blog-app
+    restart: unless-stopped
+    environment:
+      - DOMAIN=tech-review-blog.com
+      - APP_TYPE=blog
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/tech_review_blog
+      - REDIS_URL=redis://redis:6379
+      - AFFILIATE_NETWORKS=${AFFILIATE_API_KEYS}
+      - SEO_API_KEY=${SEO_TOOLS_API_KEY}
+    volumes:
+      - tech-review-uploads:/app/uploads
+      - tech-review-logs:/app/logs
+    networks:
+      - app-network
+      - gateway-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.75'
+
+  # 3. SEOBiz SaaS (seobiz.be)
+  seobiz-saas:
+    image: seobiz-platform:1.5.0
+    container_name: seobiz-be-app
+    restart: unless-stopped
+    environment:
+      - DOMAIN=seobiz.be
+      - APP_TYPE=saas
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/seobiz_saas
+      - REDIS_URL=redis://redis:6379
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - SAAS_API_KEYS=${SAAS_TOOLS_API_KEYS}
+    volumes:
+      - seobiz-uploads:/app/uploads
+      - seobiz-logs:/app/logs
+    networks:
+      - app-network
+      - gateway-network
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+      update_config:
+        parallelism: 1
+        delay: 15s
+        order: start-first
+
+  # 4. Fixie.run Web3 App (fixie.run)
+  fixie-run-app:
+    image: fixie-run:2.0.0
+    container_name: fixie-run-app
+    restart: unless-stopped
+    environment:
+      - DOMAIN=fixie.run
+      - APP_TYPE=web3-fitness
+      - NODE_ENV=production
+      - PORT=3002
+      - WEB3_CHAIN_ID=1
+      - WEB3_RPC_URL=${ETHEREUM_RPC_URL}
+      - FIX_CONTRACT_ADDRESS=${FIX_TOKEN_ADDRESS}
+      - NFT_CONTRACT_ADDRESS=${FIXIE_NFT_ADDRESS}
+      - WALLETCONNECT_PROJECT_ID=${WALLETCONNECT_PROJECT_ID}
+    volumes:
+      - fixie-uploads:/app/uploads
+      - fixie-logs:/app/logs
+    networks:
+      - app-network
+      - gateway-network
+      - web3-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.75'
+
+  # 5. Adaptogenic Mushrooms E-commerce (adaptogenic-mushrooms.com)
+  mushrooms-ecom:
+    image: portfolio-platform:2.0.0
+    container_name: adaptogenic-mushrooms-app
+    restart: unless-stopped
+    environment:
+      - DOMAIN=adaptogenic-mushrooms.com
+      - APP_TYPE=ecommerce
+      - NODE_ENV=production
+      - PORT=3003
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/mushrooms_ecom
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID}
+      - PRODUCT_API_KEY=${PRODUCT_DATABASE_API}
+    volumes:
+      - mushrooms-uploads:/app/uploads
+      - mushrooms-logs:/app/logs
+    networks:
+      - app-network
+      - gateway-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # 6. RhymeChain NFT Platform (rhymechain.win)
+  rhymechain-nft:
+    image: rhymechain-platform:1.0.0
+    container_name: rhymechain-win-app
+    restart: unless-stopped
+    environment:
+      - DOMAIN=rhymechain.win
+      - APP_TYPE=nft-marketplace
+      - NODE_ENV=production
+      - PORT=3004
+      - WEB3_CHAIN_ID=137
+      - WEB3_RPC_URL=${POLYGON_RPC_URL}
+      - NFT_MARKETPLACE_ADDRESS=${NFT_MARKETPLACE_ADDRESS}
+      - ROYALTY_CONTRACT_ADDRESS=${ROYALTY_CONTRACT_ADDRESS}
+      - STORAGE_PINATA_API_KEY=${PINATA_API_KEY}
+    volumes:
+      - rhymechain-uploads:/app/uploads
+      - rhymechain-logs:/app/logs
+    networks:
+      - app-network
+      - gateway-network
+      - web3-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
+  # 7. AI for Twelves (aiftw.be)
+  ai-platform:
+    image: ai-platform:1.0.0
+    container_name: aiftw-be-app
+    restart: unless-stopped
+    environment:
+      - DOMAIN=aiftw.be
+      - APP_TYPE=ai-tools
+      - NODE_ENV=production
+      - PORT=3005
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/ai_platform
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - AI_MONITORING_ENDPOINT=${AI_MONITORING_ENDPOINT}
+    volumes:
+      - ai-uploads:/app/uploads
+      - ai-logs:/app/logs
+    networks:
+      - app-network
+      - gateway-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.5'
+
+  # =============================================================================
+  # SHARED SERVICES
+  # =============================================================================
+  
+  # PostgreSQL Database Cluster
+  postgres-primary:
+    image: postgres:15-alpine
+    container_name: portfolio-postgres-primary
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=portfolio_main
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - postgres-primary-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - ./database/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    networks:
+      - database-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Read Replica
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: portfolio-postgres-replica
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGUSER=postgres
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+    networks:
+      - database-network
+    depends_on:
+      - postgres-primary
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+  # Redis Cluster
+  redis-master:
+    image: redis:7-alpine
+    container_name: portfolio-redis-master
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-master-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - cache-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # Redis Sentinel for High Availability
+  redis-sentinel:
+    image: redis:7-alpine
+    container_name: portfolio-redis-sentinel
+    restart: unless-stopped
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    volumes:
+      - ./redis/sentinel.conf:/usr/local/etc/redis/sentinel.conf:ro
+      - redis-sentinel-data:/data
+    networks:
+      - cache-network
+    depends_on:
+      - redis-master
+    profiles:
+      - production
+
+  # =============================================================================
+  # AI AND MACHINE LEARNING SERVICES
+  # =============================================================================
+  
+  # AI Content Generation Service
+  ai-content-service:
+    image: ai-content-service:1.0.0
+    container_name: portfolio-ai-content
+    restart: unless-stopped
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - QUEUE_NAME=content_generation
+      - WORKER_CONCURRENCY=4
+    volumes:
+      - ai-content-logs:/app/logs
+      - ai-content-cache:/app/cache
+    networks:
+      - ai-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+  # SEO Analysis Service
+  seo-analysis-service:
+    image: seo-analysis-service:1.0.0
+    container_name: portfolio-seo-analysis
+    restart: unless-stopped
+    environment:
+      - SEMRUSH_API_KEY=${SEMRUSH_API_KEY}
+      - AHREFS_API_KEY=${AHREFS_API_KEY}
+      - GTMETRIX_API_KEY=${GTMETRIX_API_KEY}
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - seo-analysis-logs:/app/logs
+    networks:
+      - ai-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.75'
+
+  # Web3 Analytics Service
+  web3-analytics-service:
+    image: web3-analytics-service:1.0.0
+    container_name: portfolio-web3-analytics
+    restart: unless-stopped
+    environment:
+      - WEB3_RPC_URL=${ETHEREUM_RPC_URL}
+      - POLYGON_RPC_URL=${POLYGON_RPC_URL}
+      - LINEA_RPC_URL=${LINEA_RPC_URL}
+      - ALCHEMY_API_KEY=${ALCHEMY_API_KEY}
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - web3-analytics-logs:/app/logs
+    networks:
+      - ai-network
+      - web3-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.75'
+
+  # =============================================================================
+  # MONITORING AND OBSERVABILITY
+  # =============================================================================
+  
+  # Prometheus for Metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: portfolio-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    networks:
+      - monitoring-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+
+  # Grafana for Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: portfolio-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    networks:
+      - monitoring-network
+    depends_on:
+      - prometheus
+
+  # =============================================================================
+  # SECURITY AND BACKUP SERVICES
+  # =============================================================================
+  
+  # Backup Service
+  backup-service:
+    image: backup-service:latest
+    container_name: portfolio-backup
+    restart: unless-stopped
+    environment:
+      - BACKUP_SCHEDULE=0 2 * * *
+      - BACKUP_RETENTION_DAYS=30
+      - S3_BUCKET=${BACKUP_S3_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres-primary:5432/portfolio_main
+    volumes:
+      - ./backups:/backups
+      - backup-logs:/app/logs
+    networks:
+      - database-network
+    depends_on:
+      - postgres-primary
+    profiles:
+      - backup
+
+  # Security Scanner
+  security-scanner:
+    image: security-scanner:latest
+    container_name: portfolio-security-scanner
+    restart: "no"
+    environment:
+      - SCAN_SCHEDULE=0 6 * * 1
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - EMAIL_RECIPIENTS=${ALERT_EMAIL_RECIPIENTS}
+      - VULNERABILITY_THRESHOLD=high
+    volumes:
+      - ./security:/security
+      - ./reports:/reports
+      - security-logs:/app/logs
+    networks:
+      - monitoring-network
+    profiles:
+      - security
+
+  # =============================================================================
+  # MESSAGE QUEUE AND WORKERS
+  # =============================================================================
+  
+  # Redis Queue Worker
+  worker-service:
+    image: worker-service:latest
+    container_name: portfolio-worker
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - WORKER_CONCURRENCY=8
+      - QUEUE_NAMES=email,seo,web3,content,backup
+    volumes:
+      - worker-logs:/app/logs
+    networks:
+      - worker-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.75'
+
+  # =============================================================================
+  # VOLUMES CONFIGURATION
+  # =============================================================================
+volumes:
+  # Application volumes
+  portfolio-uploads:
+    driver: local
+  portfolio-logs:
+    driver: local
+  tech-review-uploads:
+    driver: local
+  tech-review-logs:
+    driver: local
+  seobiz-uploads:
+    driver: local
+  seobiz-logs:
+    driver: local
+  fixie-uploads:
+    driver: local
+  fixie-logs:
+    driver: local
+  mushrooms-uploads:
+    driver: local
+  mushrooms-logs:
+    driver: local
+  rhymechain-uploads:
+    driver: local
+  rhymechain-logs:
+    driver: local
+  ai-uploads:
+    driver: local
+  ai-logs:
+    driver: local
+
+  # Database volumes
+  postgres-primary-data:
+    driver: local
+  postgres-replica-data:
+    driver: local
+  redis-master-data:
+    driver: local
+  redis-sentinel-data:
+    driver: local
+
+  # AI service volumes
+  ai-content-logs:
+    driver: local
+  ai-content-cache:
+    driver: local
+  seo-analysis-logs:
+    driver: local
+  web3-analytics-logs:
+    driver: local
+
+  # Monitoring volumes
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+  # Security and backup volumes
+  backup-logs:
+    driver: local
+  security-logs:
+    driver: local
+  worker-logs:
+    driver: local
+
+# =============================================================================
+# NETWORKS CONFIGURATION
+# =============================================================================
+networks:
+  # Public facing network
+  gateway-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
+  # Internal application network
+  app-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
+
+  # Database network
+  database-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.32.0.0/16
+
+  # Cache network
+  cache-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.33.0.0/16
+
+  # AI services network
+  ai-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.34.0.0/16
+
+  # Web3 network
+  web3-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.35.0.0/16
+
+  # Worker network
+  worker-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.36.0.0/16
+
+  # Monitoring network
+  monitoring-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.37.0.0/16
+
+# =============================================================================
+# DEPLOYMENT CONFIGURATION
+# =============================================================================
+x-deployment-defaults: &deployment-defaults
+  restart_policy:
+    condition: on-failure
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+  update_config:
+    parallelism: 1
+    delay: 10s
+    failure_action: rollback
+    monitor: 30s
+    order: start-first
+  resources:
+    limits:
+      memory: 512M
+      cpus: '0.5'
+    reservations:
+      memory: 256M
+      cpus: '0.25'
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+
+x-logging-defaults: &logging-defaults
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"

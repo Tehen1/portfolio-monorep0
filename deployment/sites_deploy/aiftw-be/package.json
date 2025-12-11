@@ -1,0 +1,14 @@
+{
+  "name": "aiftw-be",
+  "version": "1.0.0",
+  "description": "Portfolio domain site - aiftw-be",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve . -p 3000",
+    "build": "echo 'Build completed'",
+    "start": "npx serve . -p 3000"
+  },
+  "keywords": ["portfolio", "website", "landing-page"],
+  "author": "Antony Lambi",
+  "license": "MIT"
+}

@@ -1,0 +1,492 @@
+# Chaos Engineering Validation for 99.95% Uptime
+# Automated failure injection and resilience testing for production systems
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chaos-config
+  namespace: portfolio
+data:
+  chaos-experiments.json: |
+    {
+      "experiments": {
+        "pod_failure": {
+          "description": "Simulate pod failures to test Kubernetes resilience",
+          "frequency": "weekly",
+          "duration": "30m",
+          "targets": ["portfolio-app", "fixie-app", "seobiz-app"],
+          "impact_radius": "10%",
+          "rollback_on_failure": true
+        },
+        "network_partition": {
+          "description": "Test network isolation between services",
+          "frequency": "biweekly",
+          "duration": "15m",
+          "targets": ["database-network", "cache-network"],
+          "impact_radius": "5%",
+          "rollback_on_failure": true
+        },
+        "resource_stress": {
+          "description": "Simulate resource exhaustion scenarios",
+          "frequency": "monthly",
+          "duration": "45m",
+          "targets": ["portfolio-app", "ai-content-service"],
+          "stress_levels": {
+            "cpu": "90%",
+            "memory": "85%",
+            "disk_io": "80%"
+          },
+          "rollback_on_failure": true
+        },
+        "database_failover": {
+          "description": "Test PostgreSQL automatic failover",
+          "frequency": "monthly",
+          "duration": "20m",
+          "targets": ["postgres-primary"],
+          "impact_radius": "100%",
+          "rollback_on_failure": false
+        },
+        "cache_failure": {
+          "description": "Test Redis cluster failure scenarios",
+          "frequency": "weekly",
+          "duration": "25m",
+          "targets": ["redis-cluster"],
+          "impact_radius": "50%",
+          "rollback_on_failure": true
+        },
+        "external_dependency": {
+          "description": "Simulate external API failures",
+          "frequency": "biweekly",
+          "duration": "10m",
+          "targets": ["ai-content-service", "web3-analytics-service"],
+          "failure_modes": ["timeout", "rate_limit", "server_error"],
+          "rollback_on_failure": true
+        },
+        "security_incident": {
+          "description": "Simulate security breach scenarios",
+          "frequency": "quarterly",
+          "duration": "60m",
+          "targets": ["portfolio-app", "api-gateway"],
+          "attack_types": ["ddos", "sql_injection", "xss"],
+          "rollback_on_failure": true
+        },
+        "regional_failure": {
+          "description": "Test multi-region failover capabilities",
+          "frequency": "quarterly",
+          "duration": "90m",
+          "targets": ["postgres-replica-*", "redis-cluster"],
+          "impact_radius": "33%",
+          "rollback_on_failure": false
+        }
+      },
+      "validation_criteria": {
+        "uptime_target": 0.9995,
+        "recovery_time_objective": "300s",
+        "recovery_point_objective": "60s",
+        "error_rate_threshold": 0.005,
+        "performance_degradation_limit": 0.10
+      },
+      "safety_measures": {
+        "blast_radius_limit": 0.20,
+        "rollback_triggers": [
+          "uptime_below_99%",
+          "error_rate_above_5%",
+          "response_time_above_5000ms",
+          "data_loss_detected"
+        ],
+        "emergency_stop": {
+          "manual_override": true,
+          "automated_triggers": ["critical_system_down", "data_corruption"]
+        }
+      }
+    }
+
+  chaos-mesh-config.yaml: |
+    apiVersion: chaos-mesh.org/v1alpha1
+    kind: ChaosDashboard
+    metadata:
+      name: chaos-dashboard
+      namespace: chaos-mesh
+    spec:
+      permission:
+        serviceAccount: chaos-controller-manager
+        namespace: chaos-mesh
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chaos-engine-sa
+  namespace: portfolio
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: chaos-engine-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints", "nodes"]
+  verbs: ["get", "list", "watch", "patch", "update", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "replicasets"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
+- apiGroups: ["chaos-mesh.org"]
+  resources: ["*"]
+  verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: chaos-engine-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: chaos-engine-role
+subjects:
+- kind: ServiceAccount
+  name: chaos-engine-sa
+  namespace: portfolio
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-engine
+  namespace: portfolio
+  labels:
+    app: chaos-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-engine
+  template:
+    metadata:
+      labels:
+        app: chaos-engine
+    spec:
+      serviceAccountName: chaos-engine-sa
+      containers:
+      - name: chaos-engine
+        image: chaos-engine:latest
+        env:
+        - name: CONFIG_FILE
+          value: "/config/chaos-experiments.json"
+        - name: CHAOS_MESH_ENDPOINT
+          value: "http://chaos-dashboard.chaos-mesh.svc.cluster.local:2333"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.portfolio.svc.cluster.local:9090"
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: kpi-dashboard-secrets
+              key: slack-webhook-url
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+        - name: experiments-volume
+          mountPath: /experiments
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config-volume
+        configMap:
+          name: chaos-config
+      - name: experiments-volume
+        persistentVolumeClaim:
+          claimName: chaos-experiments-pvc
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: weekly-chaos-experiments
+  namespace: portfolio
+spec:
+  schedule: "0 2 * * 1"  # Every Monday at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: chaos-engine-sa
+          containers:
+          - name: chaos-runner
+            image: chaos-runner:latest
+            env:
+            - name: EXPERIMENT_TYPE
+              value: "weekly"
+            - name: CHAOS_ENGINE_URL
+              value: "http://chaos-engine.portfolio.svc.cluster.local:8080"
+            volumeMounts:
+            - name: results-volume
+              mountPath: /results
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "200m"
+          volumes:
+          - name: results-volume
+            persistentVolumeClaim:
+              claimName: chaos-results-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: monthly-chaos-experiments
+  namespace: portfolio
+spec:
+  schedule: "0 3 1 * *"  # First day of month at 3 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: chaos-engine-sa
+          containers:
+          - name: chaos-runner
+            image: chaos-runner:latest
+            env:
+            - name: EXPERIMENT_TYPE
+              value: "monthly"
+            - name: CHAOS_ENGINE_URL
+              value: "http://chaos-engine.portfolio.svc.cluster.local:8080"
+            volumeMounts:
+            - name: results-volume
+              mountPath: /results
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+          volumes:
+          - name: results-volume
+            persistentVolumeClaim:
+              claimName: chaos-results-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chaos-experiments-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chaos-results-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: standard
+
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: portfolio-pod-failure
+  namespace: portfolio
+spec:
+  action: pod-failure
+  mode: one
+  selector:
+    namespaces:
+      - portfolio
+    labelSelectors:
+      app: portfolio
+  duration: "30s"
+
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: database-network-partition
+  namespace: portfolio
+spec:
+  action: partition
+  mode: one
+  selector:
+    namespaces:
+      - portfolio
+    labelSelectors:
+      app: postgres
+  direction: to
+  target:
+    selector:
+      namespaces:
+        - portfolio
+      labelSelectors:
+        app: portfolio
+  duration: "60s"
+
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: resource-stress-test
+  namespace: portfolio
+spec:
+  action: cpu
+  mode: one
+  selector:
+    namespaces:
+      - portfolio
+    labelSelectors:
+      app: portfolio
+  stressors:
+    cpu:
+      workers: 2
+      load: 80
+  duration: "120s"
+
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: disk-io-chaos
+  namespace: portfolio
+spec:
+  action: latency
+  mode: one
+  selector:
+    namespaces:
+      - portfolio
+    labelSelectors:
+      app: postgres
+  volumePath: /var/lib/postgresql/data
+  delay: "100ms"
+  duration: "180s"
+
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: TimeChaos
+metadata:
+  name: clock-skew-chaos
+  namespace: portfolio
+spec:
+  action: skew
+  mode: one
+  selector:
+    namespaces:
+      - portfolio
+    labelSelectors:
+      app: portfolio
+  timeOffset: "1h"
+  duration: "300s"
+
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: KernelChaos
+metadata:
+  name: kernel-panic-simulation
+  namespace: portfolio
+spec:
+  action: panic
+  mode: one
+  selector:
+    namespaces:
+      - portfolio
+    labelSelectors:
+      app: portfolio
+  duration: "10s"
+
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: comprehensive-chaos-workflow
+  namespace: portfolio
+spec:
+  entry: chaos-entry
+  templates:
+  - name: chaos-entry
+    templateType: Serial
+    children:
+      - pod-failure-test
+      - network-partition-test
+      - resource-stress-test
+  - name: pod-failure-test
+    templateType: Task
+    task:
+      container:
+        name: chaos-experiment
+        image: chaos-experiment:latest
+        command: ["python", "/experiment/pod_failure.py"]
+  - name: network-partition-test
+    templateType: Task
+    task:
+      container:
+        name: chaos-experiment
+        image: chaos-experiment:latest
+        command: ["python", "/experiment/network_partition.py"]
+  - name: resource-stress-test
+    templateType: Task
+    task:
+      container:
+        name: chaos-experiment
+        image: chaos-experiment:latest
+        command: ["python", "/experiment/resource_stress.py"]
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: chaos-engine-monitor
+  namespace: portfolio
+  labels:
+    app: chaos-engine
+spec:
+  selector:
+    matchLabels:
+      app: chaos-engine
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+  namespaceSelector:
+    matchNames:
+    - portfolio

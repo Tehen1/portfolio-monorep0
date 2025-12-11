@@ -1,0 +1,459 @@
+# Cost Optimization AI for 85% Resource Utilization
+# Machine Learning-driven resource optimization reducing idle compute by 40%
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cost-optimizer-config
+  namespace: portfolio
+data:
+  optimizer-config.json: |
+    {
+      "optimization_targets": {
+        "cpu_utilization_target": 0.85,
+        "memory_utilization_target": 0.80,
+        "cost_reduction_target": 0.40,
+        "idle_resource_threshold": 0.10
+      },
+      "prediction_models": {
+        "time_series_forecasting": {
+          "algorithm": "Prophet",
+          "seasonality_mode": "multiplicative",
+          "changepoint_prior_scale": 0.05,
+          "forecast_horizon_hours": 168
+        },
+        "anomaly_detection": {
+          "algorithm": "IsolationForest",
+          "contamination": 0.1,
+          "random_state": 42
+        },
+        "resource_prediction": {
+          "algorithm": "RandomForestRegressor",
+          "n_estimators": 100,
+          "max_depth": 10,
+          "features": [
+            "hour_of_day",
+            "day_of_week",
+            "month",
+            "cpu_usage_1h",
+            "memory_usage_1h",
+            "request_count_1h",
+            "error_rate_1h"
+          ]
+        }
+      },
+      "scaling_policies": {
+        "horizontal_pod_autoscaling": {
+          "cpu_target": 70,
+          "memory_target": 80,
+          "min_replicas": 1,
+          "max_replicas": 50,
+          "stabilization_window_seconds": 300
+        },
+        "vertical_pod_autoscaling": {
+          "cpu_increment": 100,
+          "memory_increment": 128,
+          "max_cpu": 2000,
+          "max_memory": 4096
+        },
+        "cluster_autoscaling": {
+          "scale_up_threshold": 0.8,
+          "scale_down_threshold": 0.3,
+          "scale_up_cooldown": 300,
+          "scale_down_cooldown": 600
+        }
+      },
+      "cost_optimization_rules": {
+        "spot_instances": {
+          "enabled": true,
+          "max_spot_percentage": 70,
+          "fallback_to_ondemand": true
+        },
+        "reserved_instances": {
+          "optimization_enabled": true,
+          "recommendation_horizon_months": 12,
+          "break_even_threshold": 0.7
+        },
+        "storage_optimization": {
+          "compression_enabled": true,
+          "tiering_enabled": true,
+          "retention_optimization": true
+        }
+      },
+      "monitoring": {
+        "metrics_collection_interval": 60,
+        "cost_analysis_interval": 3600,
+        "alert_thresholds": {
+          "cost_anomaly": 0.20,
+          "utilization_drop": 0.50,
+          "scaling_failure": 0.05
+        }
+      }
+    }
+
+  cost-model.json: |
+    {
+      "cloud_providers": {
+        "aws": {
+          "instance_types": {
+            "t3.micro": {"cpu": 1, "memory": 1, "hourly_cost": 0.0104},
+            "t3.small": {"cpu": 1, "memory": 2, "hourly_cost": 0.0208},
+            "t3.medium": {"cpu": 2, "memory": 4, "hourly_cost": 0.0416},
+            "t3.large": {"cpu": 2, "memory": 8, "hourly_cost": 0.0832},
+            "t3.xlarge": {"cpu": 4, "memory": 16, "hourly_cost": 0.1664},
+            "c5.large": {"cpu": 2, "memory": 4, "hourly_cost": 0.0960},
+            "c5.xlarge": {"cpu": 4, "memory": 8, "hourly_cost": 0.1920},
+            "r5.large": {"cpu": 2, "memory": 16, "hourly_cost": 0.1440},
+            "r5.xlarge": {"cpu": 4, "memory": 32, "hourly_cost": 0.2880}
+          },
+          "storage_costs": {
+            "gp3": {"per_gb_month": 0.08},
+            "io1": {"per_gb_month": 0.125, "per_iops_month": 0.065},
+            "st1": {"per_gb_month": 0.045}
+          },
+          "data_transfer": {
+            "inbound": 0.00,
+            "outbound_first_1gb": 0.00,
+            "outbound_next_9gb": 0.09,
+            "outbound_over_10gb": 0.085
+          }
+        }
+      },
+      "kubernetes_overhead": {
+        "control_plane": 0.10,
+        "etcd": 0.05,
+        "monitoring": 0.05,
+        "load_balancer": 0.15
+      }
+    }
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cost-optimizer-secrets
+  namespace: portfolio
+type: Opaque
+data:
+  # Base64 encoded secrets
+  aws-access-key-id: "$(AWS_ACCESS_KEY_ID_B64)"
+  aws-secret-access-key: "$(AWS_SECRET_ACCESS_KEY_B64)"
+  datadog-api-key: "$(DATADOG_API_KEY_B64)"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-optimization-ai
+  namespace: portfolio
+  labels:
+    app: cost-optimizer
+    component: ai-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cost-optimizer
+      component: ai-engine
+  template:
+    metadata:
+      labels:
+        app: cost-optimizer
+        component: ai-engine
+    spec:
+      containers:
+      - name: cost-optimizer
+        image: cost-optimization-ai:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: PYTHONPATH
+          value: "/app"
+        - name: CONFIG_FILE
+          value: "/config/optimizer-config.json"
+        - name: COST_MODEL_FILE
+          value: "/config/cost-model.json"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.portfolio.svc.cluster.local:9090"
+        - name: KUBERNETES_API_URL
+          value: "https://kubernetes.default.svc"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+        - name: models-volume
+          mountPath: /models
+        - name: data-volume
+          mountPath: /data
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config-volume
+        configMap:
+          name: cost-optimizer-config
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: cost-optimizer-models-pvc
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: cost-optimizer-data-pvc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-optimizer-executor
+  namespace: portfolio
+  labels:
+    app: cost-optimizer
+    component: executor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-optimizer
+      component: executor
+  template:
+    metadata:
+      labels:
+        app: cost-optimizer
+        component: executor
+    spec:
+      serviceAccountName: cost-optimizer-sa
+      containers:
+      - name: executor
+        image: cost-optimizer-executor:latest
+        env:
+        - name: OPTIMIZER_API_URL
+          value: "http://cost-optimization-ai.portfolio.svc.cluster.local:8080"
+        - name: EXECUTION_INTERVAL
+          value: "300"
+        volumeMounts:
+        - name: execution-logs
+          mountPath: /logs
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: execution-logs
+        emptyDir: {}
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cost-analysis-job
+  namespace: portfolio
+spec:
+  schedule: "0 */4 * * *"  # Every 4 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cost-analysis
+            image: cost-analysis:latest
+            env:
+            - name: OPTIMIZER_API_URL
+              value: "http://cost-optimization-ai.portfolio.svc.cluster.local:8080"
+            - name: ANALYSIS_PERIOD_HOURS
+              value: "168"  # 7 days
+            volumeMounts:
+            - name: analysis-data
+              mountPath: /data
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "500m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+          volumes:
+          - name: analysis-data
+            persistentVolumeClaim:
+              claimName: cost-analysis-data-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cost-optimization-service
+  namespace: portfolio
+  labels:
+    app: cost-optimizer
+spec:
+  selector:
+    app: cost-optimizer
+    component: ai-engine
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cost-optimizer-models-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cost-optimizer-data-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cost-analysis-data-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ServiceAccount
+metadata:
+  name: cost-optimizer-sa
+  namespace: portfolio
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cost-optimizer-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "nodes", "services", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "replicasets"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cost-optimizer-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cost-optimizer-role
+subjects:
+- kind: ServiceAccount
+  name: cost-optimizer-sa
+  namespace: portfolio
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cost-optimizer-network-policy
+  namespace: portfolio
+spec:
+  podSelector:
+    matchLabels:
+      app: cost-optimizer
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    - podSelector:
+        matchLabels:
+          app: grafana
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS for external APIs
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cost-optimizer-monitor
+  namespace: portfolio
+  labels:
+    app: cost-optimizer
+spec:
+  selector:
+    matchLabels:
+      app: cost-optimizer
+      component: ai-engine
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+  namespaceSelector:
+    matchNames:
+    - portfolio

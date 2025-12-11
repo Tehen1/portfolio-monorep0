@@ -1,0 +1,14 @@
+{
+  "name": "rhymechain-win",
+  "version": "1.0.0",
+  "description": "Portfolio domain site - rhymechain-win",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve . -p 3000",
+    "build": "echo 'Build completed'",
+    "start": "npx serve . -p 3000"
+  },
+  "keywords": ["portfolio", "website", "landing-page"],
+  "author": "Antony Lambi",
+  "license": "MIT"
+}

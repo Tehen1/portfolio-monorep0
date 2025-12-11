@@ -1,0 +1,63 @@
+{
+  "name": "seo-programmatic-engine",
+  "version": "1.0.0",
+  "description": "Moteur SEO programmatique automatisé avec Perplexity & Gemini",
+  "main": "index.js",
+  "scripts": {
+    "start": "next dev",
+    "build": "next build",
+    "export": "next export",
+    "deploy": "vercel --prod",
+    "perplex-refresh": "node scripts/perplex-refresh-all.js",
+    "generate-content": "node scripts/generate-pages.js --count=100",
+    "pareto-generate": "node scripts/pareto-content-generator.js --count=50",
+    "seed-affiliates": "node scripts/seed-pareto-affiliates.js",
+    "affiliate-sync": "node scripts/affiliate-rate-sync.js",
+    "compliance-check": "node scripts/compliance-check.js",
+    "test:seo": "node scripts/seo-test-runner.js",
+    "dashboard": "node scripts/start-dashboard.js"
+  },
+  "dependencies": {
+    "@genkit-ai/mcp": "^1.24.0",
+    "@google/generative-ai": "^0.2.1",
+    "@supabase/supabase-js": "^2.38.0",
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "date-fns": "^2.30.0",
+    "dotenv": "^16.4.5",
+    "express-rate-limit": "^7.1.0",
+    "groq-sdk": "^0.7.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.17.21",
+    "next": "^14.0.0",
+    "node-cron": "^3.0.3",
+    "openai": "^4.20.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "seo",
+    "programmatic",
+    "perplexity",
+    "gemini",
+    "automation",
+    "affiliate"
+  ],
+  "author": "devtehen",
+  "license": "MIT"
+}

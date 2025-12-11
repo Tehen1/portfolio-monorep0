@@ -1,0 +1,1073 @@
+# Enterprise Kubernetes Orchestration
+# Multi-Domain Portfolio Platform with Advanced Cloud-Native Architecture
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: portfolio-platform
+  labels:
+    app: portfolio-platform
+    environment: production
+    compliance: enterprise
+---
+# =============================================================================
+# INGRESS CONTROLLER WITH CLOUDFLARE CDN INTEGRATION
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portfolio-ingress
+  namespace: portfolio-platform
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cloudflare-dns-record: "true"
+    cloudflare-proxy: "true"
+    cloudflare-zone-id: "${CLOUDFLARE_ZONE_ID}"
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-burst: "100"
+spec:
+  tls:
+  - hosts:
+    - antonylambi.be
+    - www.antonylambi.be
+    - tech-review-blog.com
+    - seobiz.be
+    - fixie.run
+    - adaptogenic-mushrooms.com
+    - rhymechain.win
+    - aiftw.be
+    - brainhealthmushrooms.com
+    - healthfulmushrooms.com
+    - puffs-store.com
+    - affinitylove.eu
+    secretName: portfolio-tls-secret
+  rules:
+  # Primary Portfolio Website
+  - host: antonylambi.be
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: portfolio-service
+            port:
+              number: 3000
+  - host: www.antonylambi.be
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: portfolio-service
+            port:
+              number: 3000
+  # Tech Review Blog
+  - host: tech-review-blog.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: techreview-service
+            port:
+              number: 3000
+  # SEOBiz SaaS Platform
+  - host: seobiz.be
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: seobiz-service
+            port:
+              number: 3001
+  # Fixie.run Web3 Application
+  - host: fixie.run
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fixie-service
+            port:
+              number: 3002
+      - path: /api/web3
+        pathType: Prefix
+        backend:
+          service:
+            name: fixie-service
+            port:
+              number: 3002
+  # E-commerce Platform
+  - host: adaptogenic-mushrooms.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mushrooms-service
+            port:
+              number: 3003
+  # NFT Marketplace
+  - host: rhymechain.win
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rhymechain-service
+            port:
+              number: 3004
+  # AI Platform
+  - host: aiftw.be
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ai-service
+            port:
+              number: 3005
+  # Additional Domains
+  - host: brainhealthmushrooms.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: brainhealth-service
+            port:
+              number: 3006
+  - host: healthfulmushrooms.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: healthful-service
+            port:
+              number: 3007
+  - host: puffs-store.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: puffs-service
+            port:
+              number: 3008
+  - host: affinitylove.eu
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: affinity-service
+            port:
+              number: 3009
+
+---
+# =============================================================================
+# HORIZONTAL POD AUTOSCALING CONFIGURATION
+# =============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: portfolio-hpa
+  namespace: portfolio-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: portfolio-deployment
+  minReplicas: 2
+  maxReplicas: 50
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "1000"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 10
+        periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Min
+
+---
+# =============================================================================
+# ISTIO SERVICE MESH CONFIGURATION
+# =============================================================================
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: portfolio-istio
+  namespace: istio-system
+spec:
+  values:
+    pilot:
+      env:
+        ENABLE_CA_SERVER: true
+    global:
+      meshID: portfolio-mesh
+      multiCluster:
+        clusterName: portfolio-cluster
+      network: portfolio-network
+  components:
+    pilot:
+      k8s:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 2048Mi
+        hpaSpec:
+          maxReplicas: 5
+          minReplicas: 1
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+        hpaSpec:
+          maxReplicas: 5
+          minReplicas: 1
+    egressGateways:
+    - name: istio-egressgateway
+      enabled: true
+  addonComponents:
+    prometheus:
+      enabled: true
+    grafana:
+      enabled: true
+    kiali:
+      enabled: true
+    jaeger:
+      enabled: true
+
+---
+# =============================================================================
+# ZERO-TRUST ARCHITECTURE WITH mTLS
+# =============================================================================
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: portfolio-platform
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: portfolio-authz
+  namespace: portfolio-platform
+spec:
+  selector:
+    matchLabels:
+      app: portfolio-app
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/portfolio-platform/sa/portfolio-service-account"]
+    - source:
+        namespaces: ["portfolio-platform"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    when:
+    - key: source.labels
+      values: ["verified"]
+
+---
+# =============================================================================
+# POSTGRESQL MULTI-REGION CLUSTERS WITH PATRONI
+# =============================================================================
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: portfolio-postgres-cluster
+  namespace: portfolio-platform
+spec:
+  instances: 3
+  primaryUpdateStrategy: unsupervised
+  postgresql:
+    parameters:
+      max_connections: "200"
+      shared_buffers: "256MB"
+      effective_cache_size: "1GB"
+      maintenance_work_mem: "64MB"
+      checkpoint_completion_target: "0.9"
+      wal_buffers: "16MB"
+      default_statistics_target: "100"
+      random_page_cost: "1.1"
+      effective_io_concurrency: "200"
+  bootstrap:
+    initdb:
+      database: portfolio_main
+      owner: postgres
+      secret:
+        name: postgres-credentials
+  storage:
+    size: 100Gi
+    storageClass: fast-ssd
+  monitoring:
+    enabled: true
+    podMonitor:
+      enabled: true
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://portfolio-backups-us-east-1/"
+      s3Credentials:
+        accessKeyId:
+          name: backup-credentials
+          key: accessKey
+        secretAccessKey:
+          name: backup-credentials
+          key: secretKey
+      wal:
+        retention: "7d"
+      data:
+        retention: "30d"
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values: ["postgres"]
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+
+---
+# =============================================================================
+# REDIS CLUSTER WITH HIGH AVAILABILITY
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-cluster
+  namespace: portfolio-platform
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: redis-cluster
+  template:
+    metadata:
+      labels:
+        app: redis-cluster
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: client
+        - containerPort: 16379
+          name: gossip
+        command:
+        - redis-server
+        - /etc/redis/redis.conf
+        - --cluster-enabled
+        - "yes"
+        - --cluster-config-file
+        - /data/nodes.conf
+        - --cluster-node-timeout
+        - "5000"
+        - --appendonly
+        - "yes"
+        - --requirepass
+        - "${REDIS_PASSWORD}"
+        - --masterauth
+        - "${REDIS_PASSWORD}"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-config
+          mountPath: /etc/redis
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-pvc
+      - name: redis-config
+        configMap:
+          name: redis-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: portfolio-platform
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    port 6379
+    timeout 0
+    tcp-keepalive 300
+    databases 16
+    save 900 1
+    save 300 10
+    save 60 10000
+    stop-writes-on-bgsave-error yes
+    rdbcompression yes
+    rdbchecksum yes
+    dbfilename dump.rdb
+    dir /data
+    maxmemory 2gb
+    maxmemory-policy allkeys-lru
+    appendonly yes
+    appendfsync everysec
+    no-appendfsync-on-rewrite no
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+    lua-time-limit 5000
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128
+    latency-monitor-threshold 0
+    notify-keyspace-events ""
+    hash-max-ziplist-entries 512
+    hash-max-ziplist-value 64
+    list-max-ziplist-size -2
+    list-compress-depth 0
+    set-max-intset-entries 512
+    zset-max-ziplist-entries 128
+    zset-max-ziplist-value 64
+    activerehashing yes
+    client-output-buffer-limit normal 0 0 0
+    client-output-buffer-limit slave 256mb 64mb 60
+    client-output-buffer-limit pubsub 32mb 8mb 60
+    hz 10
+    aof-rewrite-incremental-fsync yes
+
+---
+# =============================================================================
+# DOMAIN-SPECIFIC DEPLOYMENTS WITH AUTO-SCALING
+# =============================================================================
+# Portfolio Website Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio-deployment
+  namespace: portfolio-platform
+  labels:
+    app: portfolio-app
+    tier: frontend
+    version: v2.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: portfolio-app
+  template:
+    metadata:
+      labels:
+        app: portfolio-app
+        version: v2.0
+        tier: frontend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: portfolio-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      containers:
+      - name: portfolio-app
+        image: portfolio-platform:2.0.0
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: url
+        - name: REDIS_URL
+          value: "redis://redis-cluster:6379"
+        - name: WEB3_RPC_URL
+          value: "${ETHEREUM_RPC_URL}"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/.cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+
+---
+# Fixie.run Web3 Application Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fixie-deployment
+  namespace: portfolio-platform
+  labels:
+    app: fixie-app
+    tier: web3
+    version: v2.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: fixie-app
+  template:
+    metadata:
+      labels:
+        app: fixie-app
+        version: v2.0
+        tier: web3
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3002"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: fixie-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      containers:
+      - name: fixie-app
+        image: fixie-run:2.0.0
+        ports:
+        - containerPort: 3002
+          name: http
+        - containerPort: 8545
+          name: web3
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: WEB3_CHAIN_ID
+          value: "1"
+        - name: WEB3_RPC_URL
+          value: "${ETHEREUM_RPC_URL}"
+        - name: FIX_CONTRACT_ADDRESS
+          value: "${FIX_TOKEN_ADDRESS}"
+        - name: NFT_CONTRACT_ADDRESS
+          value: "${FIXIE_NFT_ADDRESS}"
+        - name: WALLETCONNECT_PROJECT_ID
+          value: "${WALLETCONNECT_PROJECT_ID}"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3002
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+
+---
+# =============================================================================
+# COST OPTIMIZATION AI ENGINE
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-optimization-ai
+  namespace: portfolio-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-optimization-ai
+  template:
+    metadata:
+      labels:
+        app: cost-optimization-ai
+    spec:
+      containers:
+      - name: cost-optimizer
+        image: cost-optimization-ai:1.0.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.monitoring.svc.cluster.local:9090"
+        - name: TARGET_UTILIZATION
+          value: "85"
+        - name: OPTIMIZATION_INTERVAL
+          value: "300"
+        - name: RESOURCE_THRESHOLD
+          value: "90"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: optimization-config
+          mountPath: /app/config
+      volumes:
+      - name: optimization-config
+        configMap:
+          name: cost-optimization-config
+
+---
+# =============================================================================
+# CHAOS ENGINEERING CONFIGURATION
+# =============================================================================
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: portfolio-chaos-engine
+  namespace: portfolio-platform
+spec:
+  appinfo:
+    appns: portfolio-platform
+    applabel: app=portfolio-app
+    appkind: deployment
+  chaosServiceAccount: litmus-admin
+  experiments:
+  - name: pod-delete
+    spec:
+      components:
+        env:
+        - name: TOTAL_CHAOS_DURATION
+          value: "30"
+        - name: CHAOS_INTERVAL
+          value: "10"
+        - name: FORCE
+          value: "false"
+        - name: PODS_AFFECTED_PERC
+          value: "50"
+      definition:
+        apiVersion: litmuschaos.io/v1alpha1
+        kind: ChaosExperiment
+        metadata:
+          name: pod-delete
+  - name: network-latency
+    spec:
+      components:
+        env:
+        - name: TOTAL_CHAOS_DURATION
+          value: "60"
+        - name: CHAOS_INTERVAL
+          value: "10"
+        - name: NETWORK_LATENCY
+          value: "2000"
+        - name: JITTER
+          value: "100"
+      definition:
+        apiVersion: litmuschaos.io/v1alpha1
+        kind: ChaosExperiment
+        metadata:
+          name: network-latency
+  - name: cpu-stress
+    spec:
+      components:
+        env:
+        - name: TOTAL_CHAOS_DURATION
+          value: "60"
+        - name: CHAOS_INTERVAL
+          value: "10"
+        - name: CPU_CORES
+          value: "2"
+      definition:
+        apiVersion: litmuschaos.io/v1alpha1
+        kind: ChaosExperiment
+        metadata:
+          name: cpu-stress
+
+---
+# =============================================================================
+# RESOURCE QUOTAS AND LIMITS
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: portfolio-quota
+  namespace: portfolio-platform
+spec:
+  hard:
+    requests.cpu: "100"
+    requests.memory: 200Gi
+    limits.cpu: "200"
+    limits.memory: 400Gi
+    persistentvolumeclaims: "50"
+    pods: "100"
+    services: "20"
+    secrets: "50"
+    configmaps: "50"
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: portfolio-limits
+  namespace: portfolio-platform
+spec:
+  limits:
+  - default:
+      cpu: 500m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
+  - max:
+      cpu: 2000m
+      memory: 4Gi
+    min:
+      cpu: 50m
+      memory: 64Mi
+    type: Container
+  - type: Pod
+    max:
+      cpu: 4000m
+      memory: 8Gi
+    min:
+      cpu: 100m
+      memory: 128Mi
+
+---
+# =============================================================================
+# NETWORK POLICIES FOR ZERO TRUST
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: portfolio-network-policy
+  namespace: portfolio-platform
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    ports:
+    - protocol: TCP
+      port: 3000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+
+---
+# =============================================================================
+# POD DISRUPTION BUDGETS
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: portfolio-pdb
+  namespace: portfolio-platform
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: portfolio-app
+
+---
+# =============================================================================
+# MONITORING AND ALERTING
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: portfolio-metrics
+  namespace: portfolio-platform
+  labels:
+    app: portfolio-app
+spec:
+  selector:
+    matchLabels:
+      app: portfolio-app
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: portfolio-alerts
+  namespace: portfolio-platform
+spec:
+  groups:
+  - name: portfolio.rules
+    rules:
+    - alert: HighCPUUsage
+      expr: cpu_usage_percent > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected"
+        description: "CPU usage is above 80% for more than 5 minutes"
+    - alert: HighMemoryUsage
+      expr: memory_usage_percent > 85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage detected"
+        description: "Memory usage is above 85% for more than 5 minutes"
+    - alert: PodCrashLooping
+      expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod is crash looping"
+        description: "Pod {{ $labels.pod }} is crash looping"
+    - alert: ServiceDown
+      expr: up == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Service is down"
+        description: "Service {{ $labels.job }} is down"
+
+---
+# =============================================================================
+# SERVICE ACCOUNTS FOR RBAC
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: portfolio-service-account
+  namespace: portfolio-platform
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: portfolio-role
+  namespace: portfolio-platform
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: portfolio-rolebinding
+  namespace: portfolio-platform
+subjects:
+- kind: ServiceAccount
+  name: portfolio-service-account
+  namespace: portfolio-platform
+roleRef:
+  kind: Role
+  name: portfolio-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# =============================================================================
+# VERTICAL POD AUTOSCALER
+# =============================================================================
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: portfolio-vpa
+  namespace: portfolio-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: portfolio-deployment
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: portfolio-app
+      maxAllowed:
+        cpu: 2000m
+        memory: 4Gi
+      minAllowed:
+        cpu: 50m
+        memory: 128Mi
+

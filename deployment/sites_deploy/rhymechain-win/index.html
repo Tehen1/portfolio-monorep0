@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RhymeChain.win - NFT Hip-Hop Platform & Rap Battle Gaming</title>
+    <meta name="description" content="Première plateforme NFT hip-hop au monde. Rap battles en chaîne, marketplace d'artistes, distribution de royalties blockchain. Rejoignez la révolution musicale Web3.">
+    <meta name="keywords" content="NFT hip-hop, rap battle, blockchain music, crypto rap, NFT marketplace, hip-hop gaming">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d1b69 50%, #ff6b6b 100%); 
+            min-height: 100vh; 
+            color: white;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+        header { text-align: center; margin-bottom: 60px; }
+        .logo { font-size: 3em; margin-bottom: 20px; }
+        h1 { font-size: 3.5em; color: white; margin-bottom: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,0.5); }
+        .subtitle { font-size: 1.4em; color: rgba(255,255,255,0.9); margin-bottom: 40px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 25px; margin: 50px 0; }
+        .stat { 
+            background: rgba(255,255,255,0.1); 
+            padding: 30px; 
+            border-radius: 20px; 
+            text-align: center; 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .stat-number { font-size: 2.5em; font-weight: bold; color: #ff6b6b; margin-bottom: 10px; }
+        .stat-label { color: rgba(255,255,255,0.8); font-size: 1.1em; }
+        .content { 
+            background: rgba(255,255,255,0.95); 
+            border-radius: 25px; 
+            padding: 50px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); 
+            margin-bottom: 40px;
+            color: #333;
+        }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; margin: 40px 0; }
+        .feature { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            border-radius: 20px; 
+            padding: 30px; 
+            position: relative;
+            overflow: hidden;
+        }
+        .feature::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+        .feature:hover::before {
+            transform: translateX(100%);
+        }
+        .feature-icon { font-size: 3em; margin-bottom: 20px; }
+        .feature h3 { margin-bottom: 15px; font-size: 1.4em; }
+        .feature p { line-height: 1.6; opacity: 0.9; }
+        .battle-section { 
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%); 
+            color: white; 
+            padding: 50px; 
+            border-radius: 25px; 
+            margin: 50px 0;
+            text-align: center;
+        }
+        .battle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin: 40px 0; }
+        .battle-card { background: rgba(255,255,255,0.15); padding: 30px; border-radius: 20px; }
+        .battle-card h4 { margin-bottom: 15px; font-size: 1.3em; }
+        .marketplace-section { background: #2d1b69; color: white; padding: 50px; border-radius: 25px; margin: 50px 0; }
+        .nft-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 25px; margin: 30px 0; }
+        .nft-card { background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; text-align: center; }
+        .nft-image { width: 100%; height: 150px; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); border-radius: 10px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; font-size: 3em; }
+        .cta-section { 
+            background: linear-gradient(135deg, #2d1b69 0%, #ff6b6b 100%); 
+            color: white; 
+            padding: 60px; 
+            border-radius: 25px; 
+            text-align: center; 
+            margin: 50px 0;
+        }
+        .cta-button { 
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4); 
+            color: white; 
+            padding: 20px 40px; 
+            border: none; 
+            border-radius: 30px; 
+            font-size: 1.2em; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin: 15px; 
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .cta-button:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3); 
+        }
+        .tokenomics { display: flex; justify-content: space-between; margin: 40px 0; flex-wrap: wrap; gap: 20px; }
+        .token-item { flex: 1; min-width: 150px; text-align: center; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 15px; }
+        .token-percentage { font-size: 2em; font-weight: bold; color: #ff6b6b; }
+        .token-label { font-size: 0.9em; opacity: 0.8; margin-top: 10px; }
+        footer { text-align: center; margin-top: 60px; color: rgba(255,255,255,0.8); }
+        .social-links { display: flex; justify-content: center; gap: 20px; margin: 30px 0; }
+        .social-link { color: white; text-decoration: none; padding: 15px; border-radius: 50%; background: rgba(255,255,255,0.1); transition: all 0.3s; }
+        .social-link:hover { background: #ff6b6b; transform: translateY(-3px); }
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5em; }
+            .container { padding: 20px 10px; }
+            .content { padding: 30px 20px; }
+            .stats { gap: 20px; }
+            .features-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎤🎵</div>
+            <h1>RhymeChain.win</h1>
+            <p class="subtitle">La Première Plateforme NFT Hip-Hop • Rap Battles Blockchain • Artistes & Gaming</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number">500+</div>
+                    <div class="stat-label">Artistes NFT</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">10k+</div>
+                    <div class="stat-label">Communauté</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">€5k</div>
+                    <div class="stat-label">Revenus Mensuels</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">2025</div>
+                    <div class="stat-label">Lancement</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="content">
+            <h2 style="text-align: center; margin-bottom: 40px; color: #2d1b69; font-size: 2.2em;">🚀 Révolutionnez le Hip-Hop avec la Blockchain</h2>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">🎤</div>
+                    <h3>Rap Battles NFT</h3>
+                    <p>Participez à des battles de rap en temps réel. Votez avec vos tokens RHYM et gagnez des NFTs exclusifs d'artistes.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎵</div>
+                    <h3>Marketplace Musical</h3>
+                    <p>Achetez et vendez des beats, samples et collaborations. Royalties automatiques via smart contracts.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🏆</div>
+                    <h3>Gaming & Récompenses</h3>
+                    <p>Jouez, gagnez des tokens, collectez des NFTs rares. Système de progression avec unlockables exclusifs.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💎</div>
+                    <h3>Collection NFT Premium</h3>
+                    <p>Éditions limitées d'artistes établis et talents émergents. Investissement dans la musique du futur.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="battle-section">
+            <h2 style="font-size: 2.5em; margin-bottom: 30px;">🥊 Rap Battles NFT en Direct</h2>
+            <p style="font-size: 1.3em; margin-bottom: 40px;">Défiez d'autres rappeurs dans des battles blockchainisés</p>
+            <div class="battle-grid">
+                <div class="battle-card">
+                    <h4>🔥 Battle Weekly</h4>
+                    <p>Tournois hebdomadaires avec prize pool de 10 ETH</p>
+                </div>
+                <div class="battle-card">
+                    <h4>👑 Championship</h4>
+                    <p>Compétition mensuelle, gagnant gets NFT legendaire</p>
+                </div>
+                <div class="battle-card">
+                    <h4>⚡ Rapid Fire</h4>
+                    <p>Battles express 24h, parfait pour les freestyleurs</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="marketplace-section">
+            <h2 style="text-align: center; margin-bottom: 30px; font-size: 2.2em;">🎨 Marketplace NFT Musical</h2>
+            <p style="text-align: center; margin-bottom: 40px; font-size: 1.2em;">Découvrez et collectionnez des pièces uniques d'artistes hip-hop</p>
+            <div class="nft-grid">
+                <div class="nft-card">
+                    <div class="nft-image">🎤</div>
+                    <h4>Beat Genesis #001</h4>
+                    <p>Par MC Underground</p>
+                    <p style="color: #ff6b6b; font-weight: bold;">2.5 ETH</p>
+                </div>
+                <div class="nft-card">
+                    <div class="nft-image">🎵</div>
+                    <h4>Rhythm Legend #007</h4>
+                    <p>Par DJ Flow</p>
+                    <p style="color: #ff6b6b; font-weight: bold;">1.8 ETH</p>
+                </div>
+                <div class="nft-card">
+                    <div class="nft-image">🏆</div>
+                    <h4>Battle Champion #123</h4>
+                    <p>Par Rap King</p>
+                    <p style="color: #ff6b6b; font-weight: bold;">5.2 ETH</p>
+                </div>
+                <div class="nft-card">
+                    <div class="nft-image">💎</div>
+                    <h4>Hip-Hop Royalty #089</h4>
+                    <p>Par Producer Elite</p>
+                    <p style="color: #ff6b6b; font-weight: bold;">3.1 ETH</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <h2 style="text-align: center; margin-bottom: 40px; color: #2d1b69; font-size: 2.2em;">💰 Tokenomics RHYM</h2>
+            <div class="tokenomics">
+                <div class="token-item">
+                    <div class="token-percentage">40%</div>
+                    <div class="token-label">Gaming Rewards</div>
+                </div>
+                <div class="token-item">
+                    <div class="token-percentage">25%</div>
+                    <div class="token-label">Liquidity Pool</div>
+                </div>
+                <div class="token-item">
+                    <div class="token-percentage">20%</div>
+                    <div class="token-label">Team Vesting</div>
+                </div>
+                <div class="token-item">
+                    <div class="token-percentage">10%</div>
+                    <div class="token-label">Marketing</div>
+                </div>
+                <div class="token-item">
+                    <div class="token-percentage">5%</div>
+                    <div class="token-label">Partnerships</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cta-section">
+            <h2 style="font-size: 2.8em; margin-bottom: 20px;">🎤 Rejoignez la Révolution Hip-Hop !</h2>
+            <p style="font-size: 1.4em; margin-bottom: 40px;">Première plateforme NFT hip-hop au monde. Artistes, rappeurs, fans : tous unis par la blockchain.</p>
+            <button class="cta-button">Connecter Wallet</button>
+            <button class="cta-button">Mint Votre NFT</button>
+            <button class="cta-button">Rejoindre la Battle</button>
+        </div>
+
+        <footer>
+            <h3 style="color: white; margin-bottom: 25px;">🌐 Communauté & Réseaux</h3>
+            <div class="social-links">
+                <a href="#" class="social-link">🐦</a>
+                <a href="#" class="social-link">📱</a>
+                <a href="#" class="social-link">💬</a>
+                <a href="#" class="social-link">🎮</a>
+                <a href="#" class="social-link">🔗</a>
+            </div>
+            <p style="margin-top: 30px; font-size: 0.9em;">© 2025 RhymeChain.win. Développé par Antony Lambi • Powered by Polygon</p>
+        </footer>
+    </div>
+
+    <script>
+        // Animation glow au survol des features
+        document.querySelectorAll('.feature').forEach(feature => {
+            feature.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+                this.style.boxShadow = '0 20px 40px rgba(255,107,107,0.3)';
+            });
+            
+            feature.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // Animation des cartes NFT au clic
+        document.querySelectorAll('.nft-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 200);
+            });
+        });
+
+        // Animation d'apparition au scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observer les éléments
+        document.querySelectorAll('.feature, .battle-card, .nft-card').forEach(element => {
+            element.style.opacity = '0';
+            element.style.transform = 'translateY(30px)';
+            element.style.transition = 'opacity 0.8s, transform 0.8s';
+            observer.observe(element);
+        });
+
+        // Animation des stats
+        function animateStats() {
+            document.querySelectorAll('.stat-number').forEach(stat => {
+                const text = stat.textContent;
+                if (text.includes('€')) {
+                    const number = parseInt(text.replace(/[€k+]/g, ''));
+                    let current = 0;
+                    const increment = number / 50;
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= number) {
+                            current = number;
+                            clearInterval(timer);
+                        }
+                        stat.textContent = '€' + Math.floor(current) + 'k';
+                    }, 30);
+                } else {
+                    const number = parseInt(text.replace(/\D/g, ''));
+                    let current = 0;
+                    const increment = number / 50;
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= number) {
+                            current = number;
+                            clearInterval(timer);
+                        }
+                        stat.textContent = Math.floor(current).toLocaleString() + '+';
+                    }, 30);
+                }
+            });
+        }
+
+        // Déclencher l'animation
+        const statsObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    animateStats();
+                    statsObserver.unobserve(entry.target);
+                }
+            });
+        });
+
+        statsObserver.observe(document.querySelector('.stats'));
+    </script>
+</body>
+</html>

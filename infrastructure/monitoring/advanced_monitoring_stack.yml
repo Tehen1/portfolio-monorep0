@@ -1,0 +1,507 @@
+# Advanced Monitoring Stack Configuration
+# Multi-Domain Portfolio Platform - Real-Time Analytics & Alerting
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # GRAFANA DASHBOARD & VISUALIZATION
+  # =============================================================================
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: portfolio-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=xxxxxxxxxxxxxxxx
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/plugins:/var/lib/grafana/plugins
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+      - influxdb
+
+  # =============================================================================
+  # PROMETHEUS METRICS COLLECTION
+  # =============================================================================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: portfolio-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules
+      - prometheus-storage:/prometheus
+    networks:
+      - monitoring
+    profiles:
+      - production
+
+  # =============================================================================
+  # INFLUXDB TIME SERIES DATABASE
+  # =============================================================================
+  influxdb:
+    image: influxdb:2.7.6
+    container_name: portfolio-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=portfolio_metrics
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=xxxxxxxxxxxxxxxx
+      - INFLUXDB_USER=portfolio_user
+      - INFLUXDB_USER_PASSWORD=xxxxxxxxxxxxxxxx
+      - INFLUXDB_RETENTION_POLICY=autogen
+    volumes:
+      - influxdb-storage:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    networks:
+      - monitoring
+    profiles:
+      - production
+
+  # =============================================================================
+  # JAEGER DISTRIBUTED TRACING
+  # =============================================================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.52.0
+    container_name: portfolio-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "6831:6831/udp"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - monitoring
+    profiles:
+      - production
+
+  # =============================================================================
+  # ELASTICSEARCH FOR LOG AGGREGATION
+  # =============================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: portfolio-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-storage:/usr/share/elasticsearch/data
+    networks:
+      - monitoring
+    profiles:
+      - production
+
+  # =============================================================================
+  # LOGSTASH FOR LOG PROCESSING
+  # =============================================================================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: portfolio-logstash
+    restart: unless-stopped
+    ports:
+      - "5044:5044"
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+    environment:
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    volumes:
+      - ./monitoring/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./monitoring/logstash/pipelines:/usr/share/logstash/pipeline
+    networks:
+      - monitoring
+    depends_on:
+      - elasticsearch
+    profiles:
+      - production
+
+  # =============================================================================
+  # KIBANA FOR LOG VISUALIZATION
+  # =============================================================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: portfolio-kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - monitoring
+    depends_on:
+      - elasticsearch
+    profiles:
+      - production
+
+  # =============================================================================
+  # ALERTMANAGER FOR NOTIFICATIONS
+  # =============================================================================
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: portfolio-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    volumes:
+      - ./monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml
+      - alertmanager-storage:/alertmanager
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+
+  # =============================================================================
+  # NGINX FOR LOAD BALANCING & API GATEWAY
+  # =============================================================================
+  nginx-lb:
+    image: nginx:1.25-alpine
+    container_name: portfolio-nginx-lb
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./monitoring/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./monitoring/nginx/conf.d:/etc/nginx/conf.d
+      - ./monitoring/nginx/ssl:/etc/nginx/ssl
+      - nginx-logs:/var/log/nginx
+    networks:
+      - monitoring
+      - frontend
+    depends_on:
+      - grafana
+      - prometheus
+    profiles:
+      - production
+
+  # =============================================================================
+  # POSTGRES EXPORTER FOR DATABASE MONITORING
+  # =============================================================================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.13.2
+    container_name: portfolio-postgres-exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:xxxxxxxxxxxxxxxx@postgres:5432/postgres?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - monitoring
+      - backend
+    depends_on:
+      - postgres
+
+  # =============================================================================
+  # REDIS EXPORTER FOR CACHE MONITORING
+  # =============================================================================
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.52.0
+    container_name: portfolio-redis-exporter
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=xxxxxxxxxxxxxxxx
+    ports:
+      - "9121:9121"
+    networks:
+      - monitoring
+      - backend
+    depends_on:
+      - redis
+
+  # =============================================================================
+  # NODE EXPORTER FOR SYSTEM METRICS
+  # =============================================================================
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: portfolio-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+    networks:
+      - monitoring
+    profiles:
+      - production
+
+  # =============================================================================
+  # DOMAIN SPECIFIC APPLICATIONS
+  # =============================================================================
+  
+  # Portfolio Website
+  portfolio-app:
+    image: portfolio-platform:latest
+    container_name: portfolio-app
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+    volumes:
+      - app-logs:/app/logs
+    networks:
+      - frontend
+      - backend
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Fixie.run Web3 App
+  fixie-app:
+    image: fixie-run:latest
+    container_name: fixie-app
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - WEB3_RPC_URL=${WEB3_RPC_URL}
+      - CONTRACT_ADDRESS=${FIX_CONTRACT_ADDRESS}
+    volumes:
+      - fixie-logs:/app/logs
+    networks:
+      - frontend
+      - backend
+      - web3
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+
+  # SEOBiz SaaS Platform
+  seobiz-app:
+    image: seobiz-platform:latest
+    container_name: seobiz-app
+    restart: unless-stopped
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SAAS_API_KEYS=${SAAS_API_KEYS}
+    volumes:
+      - seobiz-logs:/app/logs
+    networks:
+      - frontend
+      - backend
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.75'
+
+  # =============================================================================
+  # DATABASE SERVICES
+  # =============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: portfolio-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=portfolio
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=xxxxxxxxxxxxxxxx
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-storage:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+  redis:
+    image: redis:7-alpine
+    container_name: portfolio-redis
+    restart: unless-stopped
+    command: redis-server --requirepass xxxxxxxxxxxxxxxx
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-storage:/data
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # =============================================================================
+  # BACKUP AND RECOVERY SERVICES
+  # =============================================================================
+  backup-service:
+    image: backup-service:latest
+    container_name: portfolio-backup
+    restart: unless-stopped
+    environment:
+      - BACKUP_SCHEDULE=0 2 * * *
+      - BACKUP_RETENTION_DAYS=30
+      - S3_BUCKET=${BACKUP_S3_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    volumes:
+      - ./backups:/backups
+      - ./scripts:/scripts
+    networks:
+      - backend
+    depends_on:
+      - postgres
+      - redis
+    profiles:
+      - backup
+
+  # =============================================================================
+  # SECURITY SCANNING SERVICES
+  # =============================================================================
+  security-scanner:
+    image: security-scanner:latest
+    container_name: portfolio-security-scanner
+    restart: "no"
+    environment:
+      - SCAN_SCHEDULE=0 6 * * 1
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - EMAIL_RECIPIENTS=${ALERT_EMAIL_RECIPIENTS}
+    volumes:
+      - ./security:/security
+      - ./reports:/reports
+    networks:
+      - monitoring
+    profiles:
+      - security
+
+# =============================================================================
+# VOLUMES CONFIGURATION
+# =============================================================================
+volumes:
+  grafana-storage:
+    driver: local
+  prometheus-storage:
+    driver: local
+  influxdb-storage:
+    driver: local
+  alertmanager-storage:
+    driver: local
+  elasticsearch-storage:
+    driver: local
+  nginx-logs:
+    driver: local
+  postgres-storage:
+    driver: local
+  redis-storage:
+    driver: local
+  app-logs:
+    driver: local
+  fixie-logs:
+    driver: local
+  seobiz-logs:
+    driver: local
+
+# =============================================================================
+# NETWORKS CONFIGURATION
+# =============================================================================
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  backend:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+  web3:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16
+
+# =============================================================================
+# DEPLOYMENT CONFIGURATION
+# =============================================================================
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart-policy: &default-restart-policy
+  restart: unless-stopped
+
+x-healthcheck-defaults: &default-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s

@@ -1,0 +1,810 @@
+# PostgreSQL Multi-Region Cluster with Automated Failover
+# Production-ready database infrastructure for €1M+ revenue scale
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: portfolio
+data:
+  postgresql.conf: |
+    # Production PostgreSQL Configuration for High Availability
+    listen_addresses = '*'
+    max_connections = 1000
+    shared_buffers = 256MB
+    effective_cache_size = 1GB
+    maintenance_work_mem = 64MB
+    checkpoint_completion_target = 0.9
+    wal_buffers = 16MB
+    default_statistics_target = 100
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+    work_mem = 4MB
+    min_wal_size = 1GB
+    max_wal_size = 4GB
+    max_worker_processes = 4
+    max_parallel_workers_per_gather = 2
+    max_parallel_workers = 4
+    max_parallel_maintenance_workers = 2
+
+    # Replication settings
+    wal_level = replica
+    max_wal_senders = 10
+    max_replication_slots = 10
+    wal_keep_size = 1GB
+
+    # Logging
+    log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    log_statement = 'ddl'
+    log_duration = on
+    log_min_duration_statement = 1000
+
+    # Security
+    ssl = on
+    ssl_cert_file = '/etc/ssl/certs/postgresql.crt'
+    ssl_key_file = '/etc/ssl/private/postgresql.key'
+    ssl_ca_file = '/etc/ssl/certs/ca.crt'
+
+  pg_hba.conf: |
+    # PostgreSQL Host-Based Authentication
+    local all postgres peer
+    local all all md5
+    host all all 127.0.0.1/32 md5
+    host all all ::1/128 md5
+    host replication replicator 0.0.0.0/0 md5
+    host all all 0.0.0.0/0 md5
+
+  patroni.yml: |
+    scope: portfolio-postgres
+    namespace: /db/
+    name: postgres-$(HOSTNAME)
+
+    restapi:
+      listen: 0.0.0.0:8008
+      connect_address: $(HOSTNAME).portfolio.svc.cluster.local:8008
+
+    etcd3:
+      hosts:
+        - etcd-0.etcd.portfolio.svc.cluster.local:2379
+        - etcd-1.etcd.portfolio.svc.cluster.local:2379
+        - etcd-2.etcd.portfolio.svc.cluster.local:2379
+
+    bootstrap:
+      dcs:
+        ttl: 30
+        loop_wait: 10
+        retry_timeout: 10
+        maximum_lag_on_failover: 1048576
+        postgresql:
+          use_pg_rewind: true
+          use_slots: true
+          parameters:
+            wal_level: replica
+            hot_standby: "on"
+            wal_keep_size: 1GB
+            max_wal_senders: 10
+            max_replication_slots: 10
+            checkpoint_completion_target: 0.9
+
+      initdb:
+        - encoding: UTF8
+        - data-checksums
+
+      pg_hba:
+        - host replication replicator 0.0.0.0/0 md5
+        - host all all 0.0.0.0/0 md5
+
+    postgresql:
+      listen: "*:5432"
+      connect_address: $(HOSTNAME).portfolio.svc.cluster.local:5432
+      data_dir: /var/lib/postgresql/data/pgdata
+      bin_dir: /usr/lib/postgresql/15/bin
+      pgpass: /tmp/pgpass
+      authentication:
+        replication:
+          username: replicator
+          password: $(REPLICATOR_PASSWORD)
+        superuser:
+          username: postgres
+          password: $(POSTGRES_PASSWORD)
+      parameters:
+        unix_socket_directories: /var/run/postgresql
+      create_replica_methods:
+        - basebackup
+      recovery_conf:
+        restore_command: cp /var/lib/postgresql/data/pgdata/archive/%f %p
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: portfolio
+type: Opaque
+data:
+  # Base64 encoded passwords
+  postgres-password: "$(POSTGRES_PASSWORD_B64)"
+  replicator-password: "$(REPLICATOR_PASSWORD_B64)"
+  pgbouncer-password: "$(PGBOUNCER_PASSWORD_B64)"
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-primary
+  namespace: portfolio
+  labels:
+    app: postgres
+    role: primary
+    region: eu-west-1
+spec:
+  serviceName: postgres-primary
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      role: primary
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: primary
+        region: eu-west-1
+    spec:
+      containers:
+      - name: postgres
+        image: patroni:latest
+        ports:
+        - containerPort: 5432
+          name: postgres
+        - containerPort: 8008
+          name: patroni
+        env:
+        - name: PATRONI_POSTGRESQL_LISTEN
+          value: "0.0.0.0:5432"
+        - name: PATRONI_RESTAPI_LISTEN
+          value: "0.0.0.0:8008"
+        - name: PATRONI_POSTGRESQL_DATA_DIR
+          value: "/var/lib/postgresql/data/pgdata"
+        - name: PATRONI_POSTGRESQL_PGPASS
+          value: "/tmp/pgpass"
+        - name: PATRONI_ETCD3_HOSTS
+          value: "etcd-0.etcd.portfolio.svc.cluster.local:2379,etcd-1.etcd.portfolio.svc.cluster.local:2379,etcd-2.etcd.portfolio.svc.cluster.local:2379"
+        - name: PATRONI_SCOPE
+          value: "portfolio-postgres"
+        - name: PATRONI_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
+        - name: REPLICATOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replicator-password
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-config
+          mountPath: /etc/postgresql/postgresql.conf
+          subPath: postgresql.conf
+        - name: postgres-hba
+          mountPath: /etc/postgresql/pg_hba.conf
+          subPath: pg_hba.conf
+        - name: postgres-ssl
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        - name: postgres-ssl-key
+          mountPath: /etc/ssl/private
+          readOnly: true
+        - name: backup-volume
+          mountPath: /backup
+        livenessProbe:
+          httpGet:
+            path: /master
+            port: 8008
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /read-only
+            port: 8008
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: postgres-config
+        configMap:
+          name: postgres-config
+          items:
+          - key: postgresql.conf
+            path: postgresql.conf
+      - name: postgres-hba
+        configMap:
+          name: postgres-config
+          items:
+          - key: pg_hba.conf
+            path: pg_hba.conf
+      - name: postgres-ssl
+        secret:
+          secretName: postgres-ssl-cert
+      - name: postgres-ssl-key
+        secret:
+          secretName: postgres-ssl-key
+      - name: backup-volume
+        persistentVolumeClaim:
+          claimName: postgres-backup-pvc
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 500Gi
+      storageClassName: fast-ssd
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-replica-us-east-1
+  namespace: portfolio
+  labels:
+    app: postgres
+    role: replica
+    region: us-east-1
+spec:
+  serviceName: postgres-replica
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres
+      role: replica
+      region: us-east-1
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: replica
+        region: us-east-1
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: topology.kubernetes.io/region
+                operator: In
+                values:
+                - us-east-1
+      containers:
+      - name: postgres
+        image: patroni:latest
+        ports:
+        - containerPort: 5432
+          name: postgres
+        - containerPort: 8008
+          name: patroni
+        env:
+        - name: PATRONI_POSTGRESQL_LISTEN
+          value: "0.0.0.0:5432"
+        - name: PATRONI_RESTAPI_LISTEN
+          value: "0.0.0.0:8008"
+        - name: PATRONI_POSTGRESQL_DATA_DIR
+          value: "/var/lib/postgresql/data/pgdata"
+        - name: PATRONI_POSTGRESQL_PGPASS
+          value: "/tmp/pgpass"
+        - name: PATRONI_ETCD3_HOSTS
+          value: "etcd-0.etcd.portfolio.svc.cluster.local:2379,etcd-1.etcd.portfolio.svc.cluster.local:2379,etcd-2.etcd.portfolio.svc.cluster.local:2379"
+        - name: PATRONI_SCOPE
+          value: "portfolio-postgres"
+        - name: PATRONI_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
+        - name: REPLICATOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replicator-password
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-config
+          mountPath: /etc/postgresql/postgresql.conf
+          subPath: postgresql.conf
+        - name: postgres-hba
+          mountPath: /etc/postgresql/pg_hba.conf
+          subPath: pg_hba.conf
+        - name: postgres-ssl
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        - name: postgres-ssl-key
+          mountPath: /etc/ssl/private
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /replica
+            port: 8008
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /read-only
+            port: 8008
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: postgres-config
+        configMap:
+          name: postgres-config
+          items:
+          - key: postgresql.conf
+            path: postgresql.conf
+      - name: postgres-hba
+        configMap:
+          name: postgres-config
+          items:
+          - key: pg_hba.conf
+            path: pg_hba.conf
+      - name: postgres-ssl
+        secret:
+          secretName: postgres-ssl-cert
+      - name: postgres-ssl-key
+        secret:
+          secretName: postgres-ssl-key
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 500Gi
+      storageClassName: fast-ssd
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-replica-ap-southeast-1
+  namespace: portfolio
+  labels:
+    app: postgres
+    role: replica
+    region: ap-southeast-1
+spec:
+  serviceName: postgres-replica
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres
+      role: replica
+      region: ap-southeast-1
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: replica
+        region: ap-southeast-1
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: topology.kubernetes.io/region
+                operator: In
+                values:
+                - ap-southeast-1
+      containers:
+      - name: postgres
+        image: patroni:latest
+        ports:
+        - containerPort: 5432
+          name: postgres
+        - containerPort: 8008
+          name: patroni
+        env:
+        - name: PATRONI_POSTGRESQL_LISTEN
+          value: "0.0.0.0:5432"
+        - name: PATRONI_RESTAPI_LISTEN
+          value: "0.0.0.0:8008"
+        - name: PATRONI_POSTGRESQL_DATA_DIR
+          value: "/var/lib/postgresql/data/pgdata"
+        - name: PATRONI_POSTGRESQL_PGPASS
+          value: "/tmp/pgpass"
+        - name: PATRONI_ETCD3_HOSTS
+          value: "etcd-0.etcd.portfolio.svc.cluster.local:2379,etcd-1.etcd.portfolio.svc.cluster.local:2379,etcd-2.etcd.portfolio.svc.cluster.local:2379"
+        - name: PATRONI_SCOPE
+          value: "portfolio-postgres"
+        - name: PATRONI_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
+        - name: REPLICATOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replicator-password
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-config
+          mountPath: /etc/postgresql/postgresql.conf
+          subPath: postgresql.conf
+        - name: postgres-hba
+          mountPath: /etc/postgresql/pg_hba.conf
+          subPath: pg_hba.conf
+        - name: postgres-ssl
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        - name: postgres-ssl-key
+          mountPath: /etc/ssl/private
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /replica
+            port: 8008
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /read-only
+            port: 8008
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: postgres-config
+        configMap:
+          name: postgres-config
+          items:
+          - key: postgresql.conf
+            path: postgresql.conf
+      - name: postgres-hba
+        configMap:
+          name: postgres-config
+          items:
+          - key: pg_hba.conf
+            path: pg_hba.conf
+      - name: postgres-ssl
+        secret:
+          secretName: postgres-ssl-cert
+      - name: postgres-ssl-key
+        secret:
+          secretName: postgres-ssl-key
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 500Gi
+      storageClassName: fast-ssd
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  namespace: portfolio
+  labels:
+    app: pgbouncer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      containers:
+      - name: pgbouncer
+        image: edoburu/pgbouncer:latest
+        ports:
+        - containerPort: 6432
+          name: pgbouncer
+        env:
+        - name: PGBOUNCER_DATABASE
+          value: "*"
+        - name: PGBOUNCER_LISTEN_ADDR
+          value: "0.0.0.0"
+        - name: PGBOUNCER_LISTEN_PORT
+          value: "6432"
+        - name: PGBOUNCER_AUTH_TYPE
+          value: "md5"
+        - name: PGBOUNCER_POOL_MODE
+          value: "transaction"
+        - name: PGBOUNCER_MAX_CLIENT_CONN
+          value: "1000"
+        - name: PGBOUNCER_DEFAULT_POOL_SIZE
+          value: "20"
+        - name: PGBOUNCER_MIN_POOL_SIZE
+          value: "5"
+        - name: PGBOUNCER_RESERVE_POOL_SIZE
+          value: "5"
+        - name: PGBOUNCER_MAX_DB_CONNECTIONS
+          value: "50"
+        - name: PGBOUNCER_MAX_USER_CONNECTIONS
+          value: "50"
+        - name: DATABASE_URL
+          value: "postgres://postgres:$(POSTGRES_PASSWORD)@postgres-primary.portfolio.svc.cluster.local:5432/portfolio_main"
+        volumeMounts:
+        - name: pgbouncer-config
+          mountPath: /etc/pgbouncer
+          readOnly: true
+        livenessProbe:
+          tcpSocket:
+            port: 6432
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 6432
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: pgbouncer-config
+        configMap:
+          name: pgbouncer-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary-service
+  namespace: portfolio
+  labels:
+    app: postgres
+    role: primary
+spec:
+  selector:
+    app: postgres
+    role: primary
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replica-service
+  namespace: portfolio
+  labels:
+    app: postgres
+    role: replica
+spec:
+  selector:
+    app: postgres
+    role: replica
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-service
+  namespace: portfolio
+  labels:
+    app: pgbouncer
+spec:
+  selector:
+    app: pgbouncer
+  ports:
+  - name: pgbouncer
+    port: 6432
+    targetPort: 6432
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etcd-cluster
+  namespace: portfolio
+  labels:
+    app: etcd
+spec:
+  serviceName: etcd
+  replicas: 3
+  selector:
+    matchLabels:
+      app: etcd
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+      - name: etcd
+        image: quay.io/coreos/etcd:v3.5.9
+        ports:
+        - containerPort: 2379
+          name: client
+        - containerPort: 2380
+          name: peer
+        env:
+        - name: ETCD_DATA_DIR
+          value: "/etcd-data"
+        - name: ETCD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ETCD_INITIAL_CLUSTER
+          value: "etcd-0=http://etcd-0.etcd.portfolio.svc.cluster.local:2380,etcd-1=http://etcd-1.etcd.portfolio.svc.cluster.local:2380,etcd-2=http://etcd-2.etcd.portfolio.svc.cluster.local:2380"
+        - name: ETCD_INITIAL_CLUSTER_STATE
+          value: "new"
+        - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+          value: "http://$(ETCD_NAME).etcd.portfolio.svc.cluster.local:2380"
+        - name: ETCD_LISTEN_PEER_URLS
+          value: "http://0.0.0.0:2380"
+        - name: ETCD_LISTEN_CLIENT_URLS
+          value: "http://0.0.0.0:2379"
+        - name: ETCD_ADVERTISE_CLIENT_URLS
+          value: "http://$(ETCD_NAME).etcd.portfolio.svc.cluster.local:2379"
+        volumeMounts:
+        - name: etcd-data
+          mountPath: /etcd-data
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 2379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 2379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+  volumeClaimTemplates:
+  - metadata:
+      name: etcd-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+      storageClassName: fast-ssd
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: portfolio
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: postgres:15-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              pg_dumpall -h postgres-primary.portfolio.svc.cluster.local -U postgres > /backup/postgres-$(date +%Y%m%d-%H%M%S).sql
+              aws s3 cp /backup/postgres-$(date +%Y%m%d-%H%M%S).sql s3://$(BACKUP_BUCKET)/postgres/
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-password
+            - name: BACKUP_BUCKET
+              value: "$(BACKUP_BUCKET)"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-secret
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-secret
+                  key: secret-access-key
+            volumeMounts:
+            - name: backup-volume
+              mountPath: /backup
+          volumes:
+          - name: backup-volume
+            persistentVolumeClaim:
+              claimName: postgres-backup-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup-pvc
+  namespace: portfolio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Ti
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-config
+  namespace: portfolio
+data:
+  pgbouncer.ini: |
+    [databases]
+    * = host=postgres-primary.portfolio.svc.cluster.local port=5432
+
+    [pgbouncer]
+    listen_addr = 0.0.0.0
+    listen_port = 6432
+    auth_type = md5
+    auth_file = /etc/pgbouncer/userlist.txt
+    pool_mode = transaction
+    max_client_conn = 1000
+    default_pool_size = 20
+    min_pool_size = 5
+    reserve_pool_size = 5
+    max_db_connections = 50
+    max_user_connections = 50
+    server_idle_timeout = 30
+    server_lifetime = 3600
+    server_connect_timeout = 5
+    query_timeout = 30
+    client_idle_timeout = 300
+    idle_transaction_timeout = 60
+
+  userlist.txt: |
+    "postgres" "$(POSTGRES_PASSWORD)"
