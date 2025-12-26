@@ -1,0 +1,27 @@
+{
+    "name": "RhymeChain Genesis Test #1",
+    "description": "Genesis Test Card for RhymeChain. Experience the future of fantasy hip-hop.",
+    "image": "ipfs://QmTestHash/1.png",
+    "attributes": [
+        {
+            "trait_type": "Archetype",
+            "value": "DeFi Hustler"
+        },
+        {
+            "trait_type": "Outfit",
+            "value": "Digital Fur Coat"
+        },
+        {
+            "trait_type": "Implant",
+            "value": "Bionic Eye"
+        },
+        {
+            "trait_type": "Background",
+            "value": "Cyber-Slums"
+        },
+        {
+            "trait_type": "Rarity",
+            "value": "Epic"
+        }
+    ]
+}

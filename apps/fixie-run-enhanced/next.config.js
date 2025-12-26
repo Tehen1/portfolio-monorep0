@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: false, // Using pages directory for now
-  },
 
   images: {
     domains: ['localhost', 'vercel.app', 'fixie.run'],

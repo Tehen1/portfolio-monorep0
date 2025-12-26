@@ -4,7 +4,8 @@
   "description": "Moteur SEO programmatique automatisé avec Perplexity & Gemini",
   "main": "index.js",
   "scripts": {
-    "start": "next dev",
+    "dev": "next dev -p 3002",
+    "start": "next dev -p 3002",
     "build": "next build",
     "export": "next export",
     "deploy": "vercel --prod",

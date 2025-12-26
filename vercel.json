@@ -1,0 +1,22 @@
+{
+  "$schema": "https://vercel.com/schema.json",
+  "buildCommand": "npx turbo run build",
+  "ignoreBuildStep": "npx turbo-ignore",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "regions": ["cdg1"],
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/whitepaper",
+      "destination": "/docs/investor-pack-rhymechain/rhymechain_whitepaper.md",
+      "permanent": false
+    },
+    {
+      "source": "/litepaper",
+      "destination": "/docs/investor-pack-rhymechain/rhymechain_litepaper.md",
+      "permanent": false
+    }
+  ]
+}

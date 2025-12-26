@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antony Lambi - Consultant Digital & Stratégie Web3</title>
+    <meta name="description" content="Consultant en stratégie digitale et Web3. Expertise en optimisation SEO, développement blockchain et transformation numérique.">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+        nav ul li {
+            margin-left: 2rem;
+        }
+        nav ul li a {
+            color: #333;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        nav ul li a:hover {
+            color: #667eea;
+        }
+        .hero {
+            padding: 120px 0 80px;
+            text-align: center;
+            color: white;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .hero p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        .dashboard-widget {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .dashboard-widget h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .metric {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .services {
+            padding: 80px 0;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .services h2 {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        .service-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .service-card:hover {
+            transform: translateY(-5px);
+        }
+        .service-card h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+        footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+        }
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            nav ul {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">Antony Lambi</div>
+            <ul>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#about">À propos</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Consultant Digital & Stratégie Web3</h1>
+            <p>Expertise en optimisation SEO, développement blockchain et transformation numérique</p>
+            <a href="#contact" class="btn">Discutons de votre projet</a>
+        </div>
+    </section>
+
+    <!-- Pareto Dashboard Widget -->
+    <section class="container">
+        <div class="dashboard-widget">
+            <h3>📊 Performance Digitale - Pareto Analytics</h3>
+            <div id="pareto-dashboard" class="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="traffic">0</div>
+                    <div class="metric-label">Visiteurs/Mois</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="revenue">€0</div>
+                    <div class="metric-label">Revenus/Mois</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="efficiency">0%</div>
+                    <div class="metric-label">Efficacité Pareto</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="growth">0%</div>
+                    <div class="metric-label">Croissance</div>
+                </div>
+            </div>
+            <p style="text-align: center; margin-top: 15px; color: #666; font-size: 0.9rem;">
+                Données mises à jour en temps réel via Pareto Analytics
+            </p>
+        </div>
+    </section>
+
+    <section id="services" class="services">
+        <div class="container">
+            <h2>Mes Services</h2>
+            <div class="services-grid">
+                <div class="service-card">
+                    <h3>🚀 Optimisation SEO</h3>
+                    <p>Stratégies avancées de référencement pour maximiser votre visibilité en ligne et attirer plus de clients qualifiés.</p>
+                </div>
+                <div class="service-card">
+                    <h3>⛓️ Développement Blockchain</h3>
+                    <p>Création de solutions Web3 innovantes, smart contracts sécurisés et intégrations décentralisées.</p>
+                </div>
+                <div class="service-card">
+                    <h3>📈 Stratégie Digitale</h3>
+                    <p>Accompagnement complet pour votre transformation numérique et l'optimisation de vos processus métier.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Antony Lambi. Tous droits réservés.</p>
+            <p>Contact: hello@antonylambi.be</p>
+        </div>
+    </footer>
+
+    <script>
+        // Pareto API Integration
+        async function loadParetoData() {
+            try {
+                const response = await fetch('https://your-deployed-api.com/api/v1/pareto/analytics?domain=antonylambi.be');
+                const data = await response.json();
+
+                if (data && data['antonylambi.be']) {
+                    const domainData = data['antonylambi.be'].current_metrics;
+
+                    document.getElementById('traffic').textContent = domainData.traffic.toLocaleString();
+                    document.getElementById('revenue').textContent = '€' + domainData.revenue.toLocaleString();
+                    document.getElementById('efficiency').textContent = data['antonylambi.be'].pareto_efficiency + '%';
+                    document.getElementById('growth').textContent = domainData.growth_rate > 0 ? '+' + domainData.growth_rate + '%' : domainData.growth_rate + '%';
+                }
+            } catch (error) {
+                console.log('Pareto API not available yet - using demo data');
+                // Demo data
+                document.getElementById('traffic').textContent = '2,450';
+                document.getElementById('revenue').textContent = '€8,000';
+                document.getElementById('efficiency').textContent = '85%';
+                document.getElementById('growth').textContent = '+12%';
+            }
+        }
+
+        // Load data on page load
+        loadParetoData();
+
+        // Refresh data every 5 minutes
+        setInterval(loadParetoData, 300000);
+    </script>
+</body>
+</html>

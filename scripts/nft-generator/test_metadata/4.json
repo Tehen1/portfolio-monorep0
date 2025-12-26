@@ -1,0 +1,27 @@
+{
+    "name": "RhymeChain Genesis Test #4",
+    "description": "Genesis Test Card for RhymeChain. Experience the future of fantasy hip-hop.",
+    "image": "ipfs://QmTestHash/4.png",
+    "attributes": [
+        {
+            "trait_type": "Archetype",
+            "value": "Gasless Assassin"
+        },
+        {
+            "trait_type": "Outfit",
+            "value": "Holographic Hoodie"
+        },
+        {
+            "trait_type": "Implant",
+            "value": "Led Teeth"
+        },
+        {
+            "trait_type": "Background",
+            "value": "Cyber-Slums"
+        },
+        {
+            "trait_type": "Rarity",
+            "value": "Legendary"
+        }
+    ]
+}

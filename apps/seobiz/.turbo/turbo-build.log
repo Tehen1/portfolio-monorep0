@@ -1,12 +1,8 @@
 
-> @portfolio/seobiz-saas@1.0.0 build /Users/devtehen/Dev/portfolio-monorepo/apps/seobiz
+
+> @portfolio/seobiz-saas@1.0.0 build /Users/devtehen/Desktop/Dev/portfolio-monorep0/apps/seobiz
 > next build
 
+  [1m[38;2;173;127;168m▲ Next.js 14.2.33[39m[22m
 
-> Build error occurred
-Error: > Couldn't find any `pages` or `app` directory. Please create one under the project root
-    at findPagesDir (/Users/devtehen/Dev/portfolio-monorepo/node_modules/.pnpm/next@14.2.33_@babel+core@7.28.5_@opentelemetry+api@1.9.0_@playwright+test@1.57.0_react-dom@18_e6qzeme5tk2ppdsl3fcwr5lkoa/node_modules/next/dist/lib/find-pages-dir.js:42:15)
-    at /Users/devtehen/Dev/portfolio-monorepo/node_modules/.pnpm/next@14.2.33_@babel+core@7.28.5_@opentelemetry+api@1.9.0_@playwright+test@1.57.0_react-dom@18_e6qzeme5tk2ppdsl3fcwr5lkoa/node_modules/next/dist/build/index.js:406:73
-    at async Span.traceAsyncFn (/Users/devtehen/Dev/portfolio-monorepo/node_modules/.pnpm/next@14.2.33_@babel+core@7.28.5_@opentelemetry+api@1.9.0_@playwright+test@1.57.0_react-dom@18_e6qzeme5tk2ppdsl3fcwr5lkoa/node_modules/next/dist/trace/trace.js:154:20)
-    at async build (/Users/devtehen/Dev/portfolio-monorepo/node_modules/.pnpm/next@14.2.33_@babel+core@7.28.5_@opentelemetry+api@1.9.0_@playwright+test@1.57.0_react-dom@18_e6qzeme5tk2ppdsl3fcwr5lkoa/node_modules/next/dist/build/index.js:368:9)
- ELIFECYCLE  Command failed with exit code 1.
+ [37m[1m [22m[39m Creating an optimized production build ...

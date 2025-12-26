@@ -4,7 +4,7 @@
   "description": "SEO AI SaaS Platform with ChatGPT Integration",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3010",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

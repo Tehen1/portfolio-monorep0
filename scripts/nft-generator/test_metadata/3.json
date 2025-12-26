@@ -1,0 +1,27 @@
+{
+    "name": "RhymeChain Genesis Test #3",
+    "description": "Genesis Test Card for RhymeChain. Experience the future of fantasy hip-hop.",
+    "image": "ipfs://QmTestHash/3.png",
+    "attributes": [
+        {
+            "trait_type": "Archetype",
+            "value": "Node Guardian"
+        },
+        {
+            "trait_type": "Outfit",
+            "value": "Smart-Suit"
+        },
+        {
+            "trait_type": "Implant",
+            "value": "Bionic Eye"
+        },
+        {
+            "trait_type": "Background",
+            "value": "Neon Rooftop"
+        },
+        {
+            "trait_type": "Rarity",
+            "value": "Rare"
+        }
+    ]
+}

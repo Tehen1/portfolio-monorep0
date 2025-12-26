@@ -1,5 +1,16 @@
 
-> seo-sea-vision-pro@0.1.0 build /Users/devtehen/Dev/portfolio-monorepo/apps/seo-sea_vision_pro
+
+> seo-sea-vision-pro@0.1.0 build /Users/devtehen/Desktop/Dev/portfolio-monorep0/apps/seo-sea_vision_pro
 > next build
 
- ELIFECYCLE  Command failed with exit code 130.
+ [33m[1m⚠[22m[39m Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/devtehen/package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * /Users/devtehen/Desktop/Dev/portfolio-monorep0/pnpm-lock.yaml
+
+   [1m[38;2;173;127;168m▲ Next.js 15.5.7[39m[22m
+
+ [37m[1m [22m[39m Creating an optimized production build ...
+[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 130.[39m
