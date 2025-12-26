@@ -1,0 +1,62 @@
+[
+  {
+    "token_id": "1",
+    "name": "RhymeChain Genesis Test #1",
+    "prompt": "[ARTISTIC_DIRECTION]\nHyper-realistic digital photography mixed with gritty street art textures.\nHigh-contrast \"Neon Noir\" lighting with Cyan (#00F0FF) and Magenta (#FF00FF) key lights.\n85mm Portrait Lens, f/1.8 aperture, sharp focus on eyes and accessories.\nChromatic aberration on edges, slight film grain, glitch artifacts on holographic elements.\n\n[SUBJECT_DNA]\nArchetype: Gasless Assassin\nOutfit: Kevlar Vest\nCybernetics: Gold Skin with glowing circuit lines\nPose: Aggressive rapping stance\n\n[ENVIRONMENT_MATRIX]\nLocation: Neon Rooftop\nAtmosphere: Heavy rain, steam rising from vents, floating holographic crypto advertisements\n\n[QUALITY_GATES]\nResolution: 8K UHD\nRender Engine: Octane Render style\nDetail Level: Insane detail (visible fabric weaves, realistic skin pores, reflective metal)\n\nGenerate a single portrait of a futuristic hip-hop artist with these exact characteristics.",
+    "attributes": {
+      "Archetype": "Gasless Assassin",
+      "Outfit": "Kevlar Vest",
+      "Implant": "Gold Skin",
+      "Background": "Neon Rooftop",
+      "Rarity": "Legendary"
+    }
+  },
+  {
+    "token_id": "2",
+    "name": "RhymeChain Genesis Test #2",
+    "prompt": "[ARTISTIC_DIRECTION]\nHyper-realistic digital photography mixed with gritty street art textures.\nHigh-contrast \"Neon Noir\" lighting with Cyan (#00F0FF) and Magenta (#FF00FF) key lights.\n85mm Portrait Lens, f/1.8 aperture, sharp focus on eyes and accessories.\nChromatic aberration on edges, slight film grain, glitch artifacts on holographic elements.\n\n[SUBJECT_DNA]\nArchetype: Node Guardian\nOutfit: Holographic Hoodie\nCybernetics: Led Teeth with glowing circuit lines\nPose: Aggressive rapping stance\n\n[ENVIRONMENT_MATRIX]\nLocation: zkEVM Mainframe\nAtmosphere: Heavy rain, steam rising from vents, floating holographic crypto advertisements\n\n[QUALITY_GATES]\nResolution: 8K UHD\nRender Engine: Octane Render style\nDetail Level: Insane detail (visible fabric weaves, realistic skin pores, reflective metal)\n\nGenerate a single portrait of a futuristic hip-hop artist with these exact characteristics.",
+    "attributes": {
+      "Archetype": "Node Guardian",
+      "Outfit": "Holographic Hoodie",
+      "Implant": "Led Teeth",
+      "Background": "zkEVM Mainframe",
+      "Rarity": "Common"
+    }
+  },
+  {
+    "token_id": "3",
+    "name": "RhymeChain Genesis Test #3",
+    "prompt": "[ARTISTIC_DIRECTION]\nHyper-realistic digital photography mixed with gritty street art textures.\nHigh-contrast \"Neon Noir\" lighting with Cyan (#00F0FF) and Magenta (#FF00FF) key lights.\n85mm Portrait Lens, f/1.8 aperture, sharp focus on eyes and accessories.\nChromatic aberration on edges, slight film grain, glitch artifacts on holographic elements.\n\n[SUBJECT_DNA]\nArchetype: DeFi Hustler\nOutfit: Holographic Hoodie\nCybernetics: Gold Skin with glowing circuit lines\nPose: Aggressive rapping stance\n\n[ENVIRONMENT_MATRIX]\nLocation: Zero-Knowledge Void\nAtmosphere: Heavy rain, steam rising from vents, floating holographic crypto advertisements\n\n[QUALITY_GATES]\nResolution: 8K UHD\nRender Engine: Octane Render style\nDetail Level: Insane detail (visible fabric weaves, realistic skin pores, reflective metal)\n\nGenerate a single portrait of a futuristic hip-hop artist with these exact characteristics.",
+    "attributes": {
+      "Archetype": "DeFi Hustler",
+      "Outfit": "Holographic Hoodie",
+      "Implant": "Gold Skin",
+      "Background": "Zero-Knowledge Void",
+      "Rarity": "Common"
+    }
+  },
+  {
+    "token_id": "4",
+    "name": "RhymeChain Genesis Test #4",
+    "prompt": "[ARTISTIC_DIRECTION]\nHyper-realistic digital photography mixed with gritty street art textures.\nHigh-contrast \"Neon Noir\" lighting with Cyan (#00F0FF) and Magenta (#FF00FF) key lights.\n85mm Portrait Lens, f/1.8 aperture, sharp focus on eyes and accessories.\nChromatic aberration on edges, slight film grain, glitch artifacts on holographic elements.\n\n[SUBJECT_DNA]\nArchetype: Node Guardian\nOutfit: Kevlar Vest\nCybernetics: Bionic Eye with glowing circuit lines\nPose: Aggressive rapping stance\n\n[ENVIRONMENT_MATRIX]\nLocation: zkEVM Mainframe\nAtmosphere: Heavy rain, steam rising from vents, floating holographic crypto advertisements\n\n[QUALITY_GATES]\nResolution: 8K UHD\nRender Engine: Octane Render style\nDetail Level: Insane detail (visible fabric weaves, realistic skin pores, reflective metal)\n\nGenerate a single portrait of a futuristic hip-hop artist with these exact characteristics.",
+    "attributes": {
+      "Archetype": "Node Guardian",
+      "Outfit": "Kevlar Vest",
+      "Implant": "Bionic Eye",
+      "Background": "zkEVM Mainframe",
+      "Rarity": "Common"
+    }
+  },
+  {
+    "token_id": "5",
+    "name": "RhymeChain Genesis Test #5",
+    "prompt": "[ARTISTIC_DIRECTION]\nHyper-realistic digital photography mixed with gritty street art textures.\nHigh-contrast \"Neon Noir\" lighting with Cyan (#00F0FF) and Magenta (#FF00FF) key lights.\n85mm Portrait Lens, f/1.8 aperture, sharp focus on eyes and accessories.\nChromatic aberration on edges, slight film grain, glitch artifacts on holographic elements.\n\n[SUBJECT_DNA]\nArchetype: Quantum Spitter\nOutfit: Smart-Suit\nCybernetics: Gold Skin with glowing circuit lines\nPose: Aggressive rapping stance\n\n[ENVIRONMENT_MATRIX]\nLocation: Cyber-Slums\nAtmosphere: Heavy rain, steam rising from vents, floating holographic crypto advertisements\n\n[QUALITY_GATES]\nResolution: 8K UHD\nRender Engine: Octane Render style\nDetail Level: Insane detail (visible fabric weaves, realistic skin pores, reflective metal)\n\nGenerate a single portrait of a futuristic hip-hop artist with these exact characteristics.",
+    "attributes": {
+      "Archetype": "Quantum Spitter",
+      "Outfit": "Smart-Suit",
+      "Implant": "Gold Skin",
+      "Background": "Cyber-Slums",
+      "Rarity": "Rare"
+    }
+  }
+]
