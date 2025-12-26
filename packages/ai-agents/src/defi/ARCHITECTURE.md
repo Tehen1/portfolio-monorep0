@@ -189,7 +189,7 @@ MAX_GAS_PRICE_GWEI=100
 
 ### Phase 2 (Q1 2026)
 - [ ] MEV Protection (Flashbots)
-- [ ] Multi-chain support (Polygon, Arbitrum)
+- [ ] Multi-chain support (zkSync Elastic, Arbitrum)
 - [ ] Machine Learning pour prédiction
 - [ ] Telegram/Discord notifications
 

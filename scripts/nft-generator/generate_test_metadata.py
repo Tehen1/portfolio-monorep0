@@ -11,7 +11,7 @@ TRAITS = {
     "Archetype": ["Quantum Spitter", "DeFi Hustler", "Node Guardian", "Gasless Assassin"],
     "Outfit": ["Holographic Hoodie", "Kevlar Vest", "Digital Fur Coat", "Smart-Suit"],
     "Implant": ["Neural Link", "Bionic Eye", "Led Teeth", "Gold Skin"],
-    "Background": ["zkEVM Mainframe", "Cyber-Slums", "Neon Rooftop", "Zero-Knowledge Void"],
+    "Background": ["zkSync Mainframe", "Cyber-Slums", "Neon Rooftop", "Zero-Knowledge Void"],
     "Rarity": ["Common", "Rare", "Epic", "Legendary"]
 }
 
